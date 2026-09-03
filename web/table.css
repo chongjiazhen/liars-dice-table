@@ -51,6 +51,8 @@ input[type=text], input[type=number], select { font: inherit; padding: 3px 6px; 
 button.big { padding: 8px 18px; font-weight: 600; }
 .reveal, .duel { border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 8px; }
 .duel .verdict { font-size: 1.05rem; margin-bottom: 6px; }
+.sweep { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; }
+.sweep[hidden] { display: none; }
 .reveal .verdict { font-size: 1.05rem; margin-bottom: 6px; }
 .reveal .cups { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 4px 12px; margin-bottom: 8px; }
 .reveal .cupline { white-space: nowrap; }
