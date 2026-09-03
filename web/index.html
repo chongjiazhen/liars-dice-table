@@ -18,8 +18,8 @@
   <section id="setup" class="panel">
     <h2>Sit down</h2>
     <div class="row">
-      <label><input type="radio" name="format" value="bar" checked> Bar</label>
-      <label><input type="radio" name="format" value="dudo"> Ship (Dudo)</label>
+      <label><input type="radio" name="format" value="bar" checked> Bar <span class="hint">(five dice, drinks)</span></label>
+      <label><input type="radio" name="format" value="dudo"> Ship <span class="hint">(dice shrink)</span></label>
       <label class="gap">Seats <select id="seats"><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select></label>
       <label class="gap"><input type="checkbox" id="iou"> IOU mode <span class="hint">(ship only: Cove is the house, you and the crew hold markers)</span></label>
     </div>
@@ -35,7 +35,7 @@
       <summary>House rules <span id="rulesSummary" class="hint"></span></summary>
       <div id="rules" class="picks"></div>
       <p id="ruleHelp" class="rulehelp" hidden></p>
-      <p class="hint">Every rule opens off: the bare table is the one every difficulty number was measured on. Tick them one at a time; the tag says whose rule it is, and most play at either table (? explains each).</p>
+      <p class="hint">Every rule opens off: the bare table is the one every difficulty number was measured on. Tick them one at a time; any rule plays at either table except the two the dice forbid (? explains each).</p>
     </details>
     <div class="row">
       <label>Seed <input type="text" id="seed" size="10" placeholder="random"></label>

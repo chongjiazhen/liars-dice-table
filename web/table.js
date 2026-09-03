@@ -100,9 +100,9 @@
       const l = document.createElement("label");
       const c = document.createElement("input"); c.type = "checkbox"; c.value = key; c.checked = on; c.disabled = forced;
       c.addEventListener("change", enforceCount);
-      l.appendChild(c); l.appendChild(document.createTextNode(" " + r.name + " "));
-      const s = document.createElement("span"); s.className = "hint"; s.textContent = r.rid === 0 ? "ship" : "bar"; l.appendChild(s);
-      box.appendChild(l);
+      l.appendChild(c); l.appendChild(document.createTextNode(" " + r.name));
+      box.appendChild(l);   // no home-table tag: the log's cfg line carries the roster id for the reader who needs it
+
     });
     enforceCount();
   }
@@ -146,7 +146,9 @@
       const c = document.createElement("input"); c.type = "checkbox"; c.value = r.id; c.checked = false;   // the bare table: every difficulty number was measured at mask 0
       c.addEventListener("change", rulesSummary);
       l.appendChild(c); l.appendChild(document.createTextNode(" " + r.name + " "));
-      const s = document.createElement("span"); s.className = "hint"; s.textContent = r.biome === home ? "house" : (r.portable ? r.biome : r.biome + " only"); l.appendChild(s);
+      // The only biome that survives on the web is the table's dice economy, so
+      // the only tag is the one that gates on it: the two rules that cannot port.
+      if (!r.portable) { const s = document.createElement("span"); s.className = "hint"; s.textContent = r.biome + " only"; l.appendChild(s); }
       if (!r.portable && r.biome !== home) c.disabled = true;
       const w = document.createElement("button"); w.type = "button"; w.className = "why"; w.textContent = "?"; w.dataset.rule = r.id; w.title = "what this rule does";
       w.addEventListener("click", (e) => { e.preventDefault(); showRuleHelp(r); });
