@@ -143,7 +143,7 @@
     info.rules.forEach((r) => {
       const l = document.createElement("label");
       l.title = RULE_HELP[r.name] || "";
-      const c = document.createElement("input"); c.type = "checkbox"; c.value = r.id; c.checked = r.biome === home;
+      const c = document.createElement("input"); c.type = "checkbox"; c.value = r.id; c.checked = false;   // the bare table: every difficulty number was measured at mask 0
       c.addEventListener("change", rulesSummary);
       l.appendChild(c); l.appendChild(document.createTextNode(" " + r.name + " "));
       const s = document.createElement("span"); s.className = "hint"; s.textContent = r.biome === home ? "house" : (r.portable ? r.biome : r.biome + " only"); l.appendChild(s);
