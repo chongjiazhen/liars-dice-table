@@ -160,8 +160,7 @@
         wait = HAND_BEAT;
         break;
       case "Bid":
-        game.standing = ev.bid; game.bidder = ev.seat; game.turn = (ev.seat + 1) % game.n;
-        while (!game.alive[game.turn]) game.turn = (game.turn + 1) % game.n;
+        game.standing = ev.bid; game.bidder = ev.seat; game.turn = ev.other;   // the engine names who acts next
         game.last[ev.seat] = "bid " + bidHtml(ev.bid);
         log("  " + seatName(ev.seat) + " bids " + bidText(ev.bid));
         break;
