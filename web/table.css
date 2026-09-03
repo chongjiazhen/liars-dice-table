@@ -61,3 +61,9 @@ button.big { padding: 8px 18px; font-weight: 600; }
 .matchend { font-weight: 600; margin: 8px 0; }
 .log { max-height: 220px; overflow: auto; background: rgba(127,127,127,0.08); padding: 8px; font-size: 0.85rem; white-space: pre-wrap; }
 .record { font-size: 0.9rem; color: var(--muted); }
+.picks .why { padding: 0 6px; font-size: 0.8rem; line-height: 1.2; margin-left: 2px; }
+.picks .why.on { border-color: var(--felt); box-shadow: 0 0 0 1px var(--felt) inset; }
+.rulehelp { margin: 6px 0 0; padding: 8px 10px; border-left: 3px solid var(--felt); background: rgba(127,127,127,0.08); font-size: 0.95rem; }
+.rulehelp b { color: var(--felt); }
+.panel.flash { animation: flash 1.6s ease-out; }
+@keyframes flash { 0% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: 0 0 0 0 transparent; } }

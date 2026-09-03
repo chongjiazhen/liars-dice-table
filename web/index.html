@@ -11,7 +11,7 @@
 <main id="app">
   <header>
     <h1>Liar's Dice</h1>
-    <p class="sub">Chinese-variant Liar's Dice against a characterful AI. Beta - <a href="#reporting">how to report</a>.</p>
+    <p class="sub">Chinese-variant Liar's Dice against a characterful AI. Beta - <a href="#reporting" id="toReport">how to report</a>.</p>
     <p id="readline" class="readline">Loading the table...</p>
   </header>
 
@@ -34,7 +34,8 @@
     <details class="row">
       <summary>House rules <span id="rulesSummary" class="hint"></span></summary>
       <div id="rules" class="picks"></div>
-      <p class="hint">Each format opens on its stock rules. The others are the other table's, playable here too.</p>
+      <p id="ruleHelp" class="rulehelp" hidden></p>
+      <p class="hint">Each format opens on its stock rules. Most of the other table's rules play here too; two stay home (? explains each).</p>
     </details>
     <div class="row">
       <label>Seed <input type="text" id="seed" size="10" placeholder="random"></label>
@@ -99,7 +100,7 @@
   <section id="reporting" class="panel">
     <h2>Reporting</h2>
     <p>Something felt wrong, too easy, too hard, or broke? Copy the match log above and paste it into an issue on the repository this page is served from. The log carries the seed and the build, so the hand can be replayed exactly.</p>
-    <p class="hint">Build <span id="build">?</span>. The table remembers you in this browser only: <a href="#" id="forget">forget me</a> · <a href="#" id="resetMarkers">reset markers</a>.</p>
+    <p class="hint">Build <span id="build">?</span>. The table remembers you in this browser only: <a href="#" id="forget">forget me</a> · <a href="#" id="resetMarkers">reset IOU markers</a> <span id="resetMsg" class="hint"></span>.</p>
   </section>
 </main>
 <script src="dist/table.js"></script>

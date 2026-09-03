@@ -63,7 +63,7 @@
   // ---- the read line -----------------------------------------------------------
   function readLine() {
     const e = load(STORE.est, null);
-    if (!e || !e.n) return "The table hasn't met you yet.";
+    if (!e || !e.n) return "The table hasn't met you yet - it takes your measure at the end of each match.";
     const bluff = e.br > 0.4 ? "bluff often" : e.br < 0.15 ? "rarely bluff" : "bluff now and then";
     const call = e.ct > 0.5 ? "call thin" : e.ct < 0.25 ? "call only when sure" : "call when it's close";
     return "They think you " + bluff + " and " + call + " (" + e.n + " hands remembered).";
@@ -114,16 +114,43 @@
     $("play").disabled = on !== want;
     $("play").textContent = on === want ? "Deal" : "Pick " + (want - on) + " more";
   }
+  // What each house rule does, in the page's own words (the device carries the
+  // in-character teach cards; this is the plain page 2 of each). Keyed by the
+  // engine's short name so the list order stays the engine's.
+  const RULE_HELP = {
+    "surrender": "When your bid is challenged you may fold instead of lifting the cup: a reduced penalty, and nobody sees your dice. Bar rule; plays on the ship too.",
+    "chain kill": "A challenge can sweep a run of recent bidders at once, at a depth you pick. Each swept seat answers on its own last bid, and every one that was wrong pays. Bar rule; plays on the ship too.",
+    "direction": "The seat that opens the hand chooses which way the bidding runs. Bar rule; plays on the ship too.",
+    "must-pairs": "A cup with no pair is shaken again until it pairs. Bar only: with the ship's shrinking dice pool a reroll leaks nearly the whole hand.",
+    "counter-kill": "A challenged bidder can double the stake instead of lifting; the challenger can double back, escalate, or fold. The loser pays the stake that stood, with no ceiling but nerve. Bar rule; plays on the ship too.",
+    "+2 reverse": "Raising the count by two or more reverses the direction of play. Bar rule; plays on the ship too.",
+    "palifico": "When a player is down to one die the next round is played with aces counting only as aces, no wilds. Ship only: the bar's fixed five dice never reach one die.",
+    "calza": "After a rival's bid, anyone off-turn may call the count exact. Spot on heals a die (sobers a drink in the bar); a miss costs one. Ship rule; plays in the bar too.",
+    "out-of-turn dudo": "After a rival's bid you may challenge it at once, without waiting for your turn. Ship rule; plays in the bar too."
+  };
+  let helpOpen = null;   // the rule whose help is showing
+  function showRuleHelp(r) {
+    helpOpen = helpOpen === r.id ? null : r.id;
+    const p = $("ruleHelp");
+    p.hidden = helpOpen === null;
+    if (helpOpen !== null) p.innerHTML = "<b>" + r.name + "</b> - " + (RULE_HELP[r.name] || "No note for this rule yet.");
+    document.querySelectorAll("#rules .why").forEach((b) => b.classList.toggle("on", parseInt(b.dataset.rule, 10) === helpOpen));
+  }
   function renderRules() {
     const box = $("rules"); box.innerHTML = "";
+    helpOpen = null; $("ruleHelp").hidden = true;
     const home = format() === "dudo" ? "ship" : "bar";
     info.rules.forEach((r) => {
       const l = document.createElement("label");
+      l.title = RULE_HELP[r.name] || "";
       const c = document.createElement("input"); c.type = "checkbox"; c.value = r.id; c.checked = r.biome === home;
       c.addEventListener("change", rulesSummary);
       l.appendChild(c); l.appendChild(document.createTextNode(" " + r.name + " "));
-      const s = document.createElement("span"); s.className = "hint"; s.textContent = r.biome === home ? "house" : (r.portable ? r.biome : r.biome + ", stays home"); l.appendChild(s);
+      const s = document.createElement("span"); s.className = "hint"; s.textContent = r.biome === home ? "house" : (r.portable ? r.biome : r.biome + " only"); l.appendChild(s);
       if (!r.portable && r.biome !== home) c.disabled = true;
+      const w = document.createElement("button"); w.type = "button"; w.className = "why"; w.textContent = "?"; w.dataset.rule = r.id; w.title = "what this rule does";
+      w.addEventListener("click", (e) => { e.preventDefault(); showRuleHelp(r); });
+      l.appendChild(w);
       box.appendChild(l);
     });
     rulesSummary();
@@ -552,6 +579,15 @@
     $("window").addEventListener("input", () => { windowSec = parseFloat($("window").value); save(STORE.window, windowSec); showWindow(); });
     $("again").addEventListener("click", () => { $("table").hidden = true; $("setup").hidden = false; renderRivals(); });
     $("forget").addEventListener("click", (e) => { e.preventDefault(); localStorage.removeItem(STORE.est); localStorage.removeItem(STORE.record); localStorage.removeItem(STORE.record + ".streak"); renderRead(); renderRecord(); });
-    $("resetMarkers").addEventListener("click", (e) => { e.preventDefault(); localStorage.removeItem(STORE.markers); });
+    $("resetMarkers").addEventListener("click", (e) => {
+      e.preventDefault(); localStorage.removeItem(STORE.markers);
+      const d = markersDefault();
+      $("resetMsg").textContent = "(back to the house's opening book: " + Object.keys(d).map((k) => k + " " + d[k]).join(", ") + ")";
+    });
+    // The report link is an in-page anchor; on a short page nothing scrolls, so flash the panel too.
+    $("toReport").addEventListener("click", () => {
+      const p = $("reporting"); p.scrollIntoView({ behavior: "smooth", block: "start" });
+      p.classList.remove("flash"); void p.offsetWidth; p.classList.add("flash");
+    });
   }).catch((e) => { $("readline").textContent = "The table failed to load: " + e; });
 })();
