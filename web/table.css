@@ -28,6 +28,8 @@ input[type=text], input[type=number], select { font: inherit; padding: 3px 6px; 
 .seat .stat { font-size: 0.85rem; color: var(--muted); }
 .seat .last { font-size: 0.9rem; min-height: 1.4em; margin-top: 2px; }
 .seat .act { color: var(--accent); font-weight: 600; }
+.seat .fuse { height: 3px; margin-top: 3px; }
+.seat .fuse i { display: block; height: 100%; width: 0; background: var(--accent); }
 .seat .danger { color: var(--accent); font-weight: 600; border: 1px solid var(--accent); border-radius: 4px; padding: 0 4px; font-size: 0.8rem; margin-left: 4px; }
 .standing { font-size: 1.2rem; margin: 6px 0; min-height: 1.6em; }
 .die { width: 1.35em; height: 1.35em; vertical-align: -0.35em; }

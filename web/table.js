@@ -7,19 +7,20 @@
 // for a click, and your turn panel opens only once the queue has drained. The
 // engine is blocked in the decider meanwhile (Asyncify), so nothing is lost.
 // `?fast=1` drops every delay and auto-continues reveals (the drive.js gate).
-// Otherwise the pace select scales every beat (remembered in this browser).
+// Otherwise one pace slider, seconds per beat, scales every beat - the AI's
+// actions and the beat after a rival's bid in which you may call - read live
+// at each beat (remembered in this browser).
 (function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
-  const STORE = { est: "ld.estimate", record: "ld.record", markers: "ld.markers", pace: "ld.pace", window: "ld.window" };
+  const STORE = { est: "ld.estimate", record: "ld.record", markers: "ld.markers", pace: "ld.pace" };
   const FAST = /[?&]fast=1/.test(location.search);
-  const PACE = { slow: 1.6, normal: 1, quick: 0.5 };
-  let pace = 1;
+  let pace = 1;              // seconds per beat, the one tempo knob
   const beat = (ms) => (FAST ? 0 : Math.round(ms * pace));
   const BEAT = 1000;         // ms per bid
   const TENSE_BEAT = 1500;   // a challenge, a duel rung, a fold, a knockout
   const HAND_BEAT = 1700;    // a new deal
-  let windowSec = 2.5;       // the off-turn pause after a rival's bid; a live slider, 0 skips it
+  const CALL_BEAT = 2500;    // the beat after a rival's bid in which you may call: 2.5 beats
 
   let M = null;        // the wasm module
   let info = null;     // table_info()
@@ -27,7 +28,7 @@
   let pending = null;  // the resolve of the decision the page owes the engine
   let view = null;     // the decision view waiting to be shown
   let duelView = null; // a duel rung waiting to be shown
-  let calzaView = null; // a calza window waiting to be shown
+  let calzaView = null; // a call beat waiting to be shown
   let calzaTimer = null;
   let queue = [];      // events not yet rendered
   let draining = false;
@@ -220,7 +221,7 @@
       const stat = game.dudo ? (game.dice[s] + (game.dice[s] === 1 ? " die" : " dice"))
                  : (game.dice[s] + (game.dice[s] === 1 ? " drink" : " drinks") + (danger ? " <span class='danger' title='in the last six drinks: one of them, drawn at the deal and kept secret, is the last'>in danger</span>" : ""));
       const mk = game.iou && game.markers[s] >= 0 ? " · " + game.markers[s] + " markers" : "";
-      d.innerHTML = "<div class='name'>" + seatName(s) + "</div><div class='stat'>" + stat + mk + "</div><div class='last'>" + (game.last[s] || "&nbsp;") + "</div>";
+      d.innerHTML = "<div class='name'>" + seatName(s) + "</div><div class='stat'>" + stat + mk + "</div><div class='last'>" + (game.last[s] || "&nbsp;") + "</div><div class='fuse'><i></i></div>";
       box.appendChild(d);
     }
     $("standing").innerHTML = game.standing
@@ -345,43 +346,50 @@
     view = v;
     return new Promise((resolve) => { pending = resolve; drain(); });
   }
-  // ---- the off-turn window ------------------------------------------------------
+  // ---- the call beat -------------------------------------------------------------
   // The device gives the player the AI's think-pause to call exact or to
-  // challenge out of turn; here the window is a timed panel that passes on
-  // its own. FAST passes at once.
+  // challenge out of turn. Here nobody asks: after a rival's bid, Exact! and
+  // Challenge are live for one long beat, the bidder's card shows it draining,
+  // and silence passes. FAST passes at once.
   function interrupt(v) {
-    if (FAST || windowSec <= 0) return Promise.resolve(0);
+    if (FAST) return Promise.resolve(0);
     calzaView = v;
     return new Promise((resolve) => { pending = resolve; drain(); });
+  }
+  function fuse(seat, frac) {
+    const i = document.querySelector("#seatsView .seat:nth-child(" + (seat + 1) + ") .fuse i");
+    if (i) i.style.width = Math.round(frac * 100) + "%";
   }
   function showCalza() {
     if (!calzaView || !pending) return;
     const v = calzaView; calzaView = null;
-    const heal = game.dudo ? (v.heal ? "a die back" : "nothing (your cup is full)") : (v.heal ? "sobers you a drink" : "nothing (you are sober)");
+    const heal = game.dudo ? (v.heal ? "a die back" : "nothing, your cup is full") : (v.heal ? "sobers you a drink" : "nothing, you are sober");
     const miss = game.dudo ? "a die" : "a drink";
     const offers = [];
-    if (v.canCalza) offers.push("call it exact (a hit is " + heal + ", a miss costs " + miss + ")");
-    if (v.canChallenge) offers.push("Challenge it now, out of turn");
-    $("calzaMsg").innerHTML = seatName(v.bidder) + " bid " + bidHtml(v.standing) + ". You may " + offers.join(", or ") + ". Your cup: <span class='cup'>" + cupHtml(v.hand) + "</span>";
+    if (v.canCalza) offers.push("Exact! (a hit is " + heal + ", a miss costs " + miss + ")");
+    if (v.canChallenge) offers.push("Challenge out of turn");
     setPhase("window");
+    $("cup").innerHTML = cupHtml(v.hand);
     $("calzaYes").disabled = !v.canCalza; $("calzaYes").title = v.canCalza ? "call the count exact" : "no calza now";
     // The one Challenge button serves the window too: live only under the out-of-turn rule.
     $("challenge").disabled = !v.canChallenge;
     $("challenge").title = v.canChallenge ? "challenge the bid out of turn" : (game.rules.oot ? "no out-of-turn challenge now" : "not your turn");
-    $("calzaNo").disabled = false; $("calzaNo").title = "let it pass";
-    $("calzaHint").textContent = "";
-    $("calza").scrollIntoView({ block: "nearest" });
-    let left = Math.round(windowSec * 1000);
-    const tick = () => { $("calzaHint").textContent = "passes in " + Math.ceil(left / 1000) + "s"; };
+    const total = Math.max(1, beat(CALL_BEAT));
+    let left = total;
+    const bidder = v.bidder;
+    const tick = () => {
+      $("turnMsg").textContent = seatName(bidder) + " bid " + bidText(v.standing) + ": " + offers.join(", or ") + " - " + (left / 1000).toFixed(1) + " s";
+      fuse(bidder, left / total);
+    };
     tick();
-    calzaTimer = setInterval(() => { left -= 250; if (left <= 0) answerCalza(0); else tick(); }, 250);
+    calzaTimer = setInterval(() => { left -= 100; if (left <= 0) answerCalza(0); else tick(); }, 100);
   }
   function answerCalza(a) {
     if (!pending) return;
     if (calzaTimer) { clearInterval(calzaTimer); calzaTimer = null; }
     const r = pending; pending = null;
+    for (let s = 0; s < game.n; s++) fuse(s, 0);
     setPhase("idle");
-    $("calzaMsg").textContent = "The pause after a rival's bid: call the count exact, or Challenge it out of turn.";
     r(a);
   }
 
@@ -432,8 +440,7 @@
   // Which row is live. Everything else is greyed with a title that says why.
   function setPhase(p) {
     game.phase = p;
-    $("turn").classList.toggle("on", p === "turn");
-    $("calza").classList.toggle("on", p === "window");
+    $("turn").classList.toggle("on", p === "turn" || p === "window");
     $("duel").classList.toggle("on", p === "duel");
     const off = (ids, why) => ids.forEach((id) => { const e = $(id); e.disabled = true; e.title = why; });
     if (p !== "turn") {
@@ -441,7 +448,7 @@
       document.querySelectorAll("#menu .cell, #faces .face").forEach((b) => { b.disabled = true; });
       $("turnMsg").textContent = game.over ? "" : "waiting on the table";
     }
-    if (p !== "window") off(["calzaYes", "calzaNo"], "only in the pause after a rival's bid");
+    if (p !== "window") off(["calzaYes"], "only in the beat after a rival's bid");
     if (p !== "duel") off(["duelStand", "duelEscalate", "duelFold"], "only in a duel you are in");
   }
   function showTurn() {
@@ -611,7 +618,6 @@
     // buttons; everything else stays on the page and greys when not on offer.
     $("turn").hidden = false;
     $("sweepWrap").hidden = !game.rules.chain;
-    $("calza").hidden = !(game.rules.calza || game.rules.oot);
     $("calzaYes").hidden = !game.rules.calza;
     $("duel").hidden = !game.rules.ck;
     setPhase("idle");
@@ -661,19 +667,17 @@
       answer(d >= 2 ? -(d + 1) : -1);                              // a sweep at depth d, or the bid alone
     });
     $("calzaYes").addEventListener("click", () => answerCalza(1));
-    $("calzaNo").addEventListener("click", () => answerCalza(0));
     $("duelStand").addEventListener("click", () => answerDuel(0));
     $("duelEscalate").addEventListener("click", () => answerDuel(1));
     $("duelFold").addEventListener("click", () => answerDuel(2));
     $("copyLog").addEventListener("click", copyLog);
-    const savedPace = load(STORE.pace, "normal");
-    if (PACE[savedPace]) { $("pace").value = savedPace; pace = PACE[savedPace]; }
-    $("pace").addEventListener("change", () => { pace = PACE[$("pace").value] || 1; save(STORE.pace, $("pace").value); });
-    const savedWindow = load(STORE.window, null);
-    if (typeof savedWindow === "number") { windowSec = savedWindow; $("window").value = savedWindow; }
-    const showWindow = () => { $("windowv").textContent = windowSec <= 0 ? "off" : windowSec + "s"; };
-    showWindow();
-    $("window").addEventListener("input", () => { windowSec = parseFloat($("window").value); save(STORE.window, windowSec); showWindow(); });
+    const savedPace = load(STORE.pace, 1);
+    const named = { slow: 1.6, normal: 1, quick: 0.5 };            // the old select's values
+    pace = typeof savedPace === "number" ? savedPace : (named[savedPace] || 1);
+    $("pace").value = pace;
+    const showPace = () => { $("pacev").textContent = pace.toFixed(1) + " s a beat"; };
+    showPace();
+    $("pace").addEventListener("input", () => { pace = parseFloat($("pace").value); save(STORE.pace, pace); showPace(); });
     $("again").addEventListener("click", () => { $("table").hidden = true; $("setup").hidden = false; renderRivals(); });
     $("forget").addEventListener("click", (e) => { e.preventDefault(); localStorage.removeItem(STORE.est); localStorage.removeItem(STORE.record); localStorage.removeItem(STORE.record + ".streak"); renderRead(); renderRecord(); });
     $("resetMarkers").addEventListener("click", (e) => {
