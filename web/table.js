@@ -11,7 +11,7 @@
 (function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
-  const STORE = { est: "ld.estimate", record: "ld.record", markers: "ld.markers", pace: "ld.pace" };
+  const STORE = { est: "ld.estimate", record: "ld.record", markers: "ld.markers", pace: "ld.pace", window: "ld.window" };
   const FAST = /[?&]fast=1/.test(location.search);
   const PACE = { slow: 1.6, normal: 1, quick: 0.5 };
   let pace = 1;
@@ -19,7 +19,7 @@
   const BEAT = 1000;         // ms per bid
   const TENSE_BEAT = 1500;   // a challenge, a duel rung, a fold, a knockout
   const HAND_BEAT = 1700;    // a new deal
-  const CALZA_WINDOW = 2600; // the off-turn calza pause after a rival's bid
+  let windowSec = 2.5;       // the off-turn pause after a rival's bid; a live slider, 0 skips it
 
   let M = null;        // the wasm module
   let info = null;     // table_info()
@@ -288,7 +288,7 @@
   // challenge out of turn; here the window is a timed panel that passes on
   // its own. FAST passes at once.
   function interrupt(v) {
-    if (FAST) return Promise.resolve(0);
+    if (FAST || windowSec <= 0) return Promise.resolve(0);
     calzaView = v;
     return new Promise((resolve) => { pending = resolve; drain(); });
   }
@@ -305,7 +305,7 @@
     $("calzaChallenge").hidden = !v.canChallenge;
     $("calzaHint").textContent = "";
     $("calza").hidden = false;
-    let left = beat(CALZA_WINDOW);
+    let left = Math.round(windowSec * 1000);
     const tick = () => { $("calzaHint").textContent = "passes in " + Math.ceil(left / 1000) + "s"; };
     tick();
     calzaTimer = setInterval(() => { left -= 250; if (left <= 0) answerCalza(0); else tick(); }, 250);
@@ -545,6 +545,11 @@
     const savedPace = load(STORE.pace, "normal");
     if (PACE[savedPace]) { $("pace").value = savedPace; pace = PACE[savedPace]; }
     $("pace").addEventListener("change", () => { pace = PACE[$("pace").value] || 1; save(STORE.pace, $("pace").value); });
+    const savedWindow = load(STORE.window, null);
+    if (typeof savedWindow === "number") { windowSec = savedWindow; $("window").value = savedWindow; }
+    const showWindow = () => { $("windowv").textContent = windowSec <= 0 ? "off" : windowSec + "s"; };
+    showWindow();
+    $("window").addEventListener("input", () => { windowSec = parseFloat($("window").value); save(STORE.window, windowSec); showWindow(); });
     $("again").addEventListener("click", () => { $("table").hidden = true; $("setup").hidden = false; renderRivals(); });
     $("forget").addEventListener("click", (e) => { e.preventDefault(); localStorage.removeItem(STORE.est); localStorage.removeItem(STORE.record); localStorage.removeItem(STORE.record + ".streak"); renderRead(); renderRecord(); });
     $("resetMarkers").addEventListener("click", (e) => { e.preventDefault(); localStorage.removeItem(STORE.markers); });
