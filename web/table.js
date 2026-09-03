@@ -45,11 +45,12 @@
     return "<svg class='die" + (cls ? " " + cls : "") + (n === 1 ? " one" : n === 4 ? " four" : "") + "' viewBox='0 0 22 22' aria-label='" + n + "'><rect x='1' y='1' width='20' height='20' rx='4'/>" + pips + "</svg>";
   }
   function cupHtml(hand) { return hand.map((d) => die(d)).join(""); }
-  // Bidding ones makes ones count as ones: 斋 in the bar (any other face is 飞,
-  // ones wild), aces on the ship (where no tag is shown otherwise, as on the
-  // device). The engine fixes the mode from the face, so the tag is derived.
+  // Every bid carries its mode from the engine: 斋 (ones count as ones) or 飞
+  // (ones wild) in the bar, where any face can be bid either way and ones are
+  // always 斋; on the ship only aces are literal (no tag otherwise, as on the
+  // device). mode 0 = 飞, 1 = 斋 (bid.h's enum order).
   function modeTag(b) {
-    if (!game || !game.dudo) return b.face === 1 ? { t: "斋", title: "zhai: ones count as ones" } : { t: "飞", title: "fei: ones are wild" };
+    if (!game || !game.dudo) return b.mode === 1 ? { t: "斋", title: "zhai: ones count as ones" } : { t: "飞", title: "fei: ones are wild" };
     return b.face === 1 ? { t: "aces", title: "aces count as aces" } : null;
   }
   function bidHtml(b) { const m = modeTag(b); return "<b>" + b.qty + "</b> × " + die(b.face) + (m ? " <span class='lit' title='" + m.title + "'>" + m.t + "</span>" : ""); }
@@ -435,7 +436,11 @@
       menu.appendChild(btn);
     });
     // The stepper: any legal raise.
-    game.pick = v.menu.length ? { qty: v.menu[0].qty, face: v.menu[0].face } : { qty: 1, face: 2 };
+    // The stepper opens where the device seats its builder: on a raise, the
+    // cheapest legal one (it carries the round's mode); on an open, face 2 at
+    // the 飞 floor. Ones and the ship force their own mode either way.
+    game.pick = (v.standing && v.menu.length) ? { qty: v.menu[0].qty, face: v.menu[0].face, mode: v.menu[0].mode } : { qty: 1, face: 2, mode: 0 };
+    snapQty();
     renderStepper();
     $("challenge").disabled = !v.standing;
     // The sweep on offer: a run of recent bidders behind the standing bid.
@@ -461,7 +466,14 @@
     if (game.dudo) return "You open: any face but ones, from " + any + ". Ones are wild.";
     return "You open: " + any + " or more of a face (飞, ones wild), or " + ones + " or more ones (斋, ones count as ones).";
   }
-  function legalIndex(p) { return game.view.menu.findIndex((b) => b.qty === p.qty && b.face === p.face); }
+  function pickMode(p) { return p.face === 1 ? 1 : (game.dudo ? 0 : p.mode); }   // ones are always 斋; the ship is always 飞
+  function legalIndex(p) { const m = pickMode(p); return game.view.menu.findIndex((b) => b.qty === p.qty && b.face === p.face && b.mode === m); }
+  // Snap the quantity up to the cheapest legal raise on this face in this mode.
+  function snapQty() {
+    const p = game.pick, m = pickMode(p);
+    const legal = game.view.menu.filter((b) => b.face === p.face && b.mode === m).map((b) => b.qty);
+    if (legal.length && p.qty < Math.min.apply(null, legal)) p.qty = Math.min.apply(null, legal);
+  }
   function renderStepper() {
     const p = game.pick;
     $("qty").value = p.qty;
@@ -472,15 +484,18 @@
         // A face click lands on a bid you can press: the quantity snaps up to
         // that face's cheapest legal raise when what is typed is below it.
         game.pick.face = f;
-        const legal = game.view.menu.filter((m) => m.face === f).map((m) => m.qty);
-        if (legal.length && game.pick.qty < Math.min.apply(null, legal)) game.pick.qty = Math.min.apply(null, legal);
+        snapQty();
         renderStepper();
       });
       faces.appendChild(b);
     }
+    // The mode key, bar only: ones are always 斋, so it goes quiet on that face.
+    const mb = $("modeBtn"); mb.hidden = !!game.dudo;
+    mb.disabled = p.face === 1;
+    mb.textContent = pickMode(p) === 1 ? "斋 zhai" : "飞 fei";
     const ok = legalIndex(p) >= 0;
     $("bidTyped").disabled = !ok;
-    $("bidTyped").textContent = ok ? "Bid " + p.qty + " × " + p.face : "Not a legal raise";
+    $("bidTyped").textContent = ok ? "Bid " + p.qty + " × " + p.face + " " + (modeTag(game.view.menu[legalIndex(p)]) || { t: "" }).t : "Not a legal raise";
   }
   function answer(i) {
     if (!pending) return;
@@ -586,6 +601,7 @@
     $("qty").addEventListener("input", () => { const q = parseInt($("qty").value, 10); if (q > 0) { game.pick.qty = q; renderStepper(); } });
     $("qty").addEventListener("keydown", (e) => { if (e.key === "Enter") answerTyped(); });
     $("qtyUp").addEventListener("click", () => { game.pick.qty++; renderStepper(); });
+    $("modeBtn").addEventListener("click", () => { game.pick.mode = game.pick.mode === 1 ? 0 : 1; snapQty(); renderStepper(); });
     $("qtyDown").addEventListener("click", () => { if (game.pick.qty > 1) game.pick.qty--; renderStepper(); });
     $("challenge").addEventListener("click", () => answer(-1));
     $("sweep").addEventListener("click", () => answer(-(parseInt($("sweepDepth").value, 10) + 1)));
