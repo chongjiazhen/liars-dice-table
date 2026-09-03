@@ -363,10 +363,12 @@
     if (v.canCalza) offers.push("call it exact (a hit is " + heal + ", a miss costs " + miss + ")");
     if (v.canChallenge) offers.push("challenge it now, out of turn");
     $("calzaMsg").innerHTML = seatName(v.bidder) + " bid " + bidHtml(v.standing) + ". You may " + offers.join(", or ") + ". Your cup: <span class='cup'>" + cupHtml(v.hand) + "</span>";
-    $("calzaYes").hidden = !v.canCalza;
-    $("calzaChallenge").hidden = !v.canChallenge;
+    setPhase("window");
+    $("calzaYes").disabled = !v.canCalza; $("calzaYes").title = v.canCalza ? "call the count exact" : "no calza now";
+    $("calzaChallenge").disabled = !v.canChallenge; $("calzaChallenge").title = v.canChallenge ? "challenge the bid out of turn" : "no out-of-turn challenge now";
+    $("calzaNo").disabled = false; $("calzaNo").title = "let it pass";
     $("calzaHint").textContent = "";
-    $("calza").hidden = false;
+    $("calza").scrollIntoView({ block: "nearest" });
     let left = Math.round(windowSec * 1000);
     const tick = () => { $("calzaHint").textContent = "passes in " + Math.ceil(left / 1000) + "s"; };
     tick();
@@ -376,7 +378,8 @@
     if (!pending) return;
     if (calzaTimer) { clearInterval(calzaTimer); calzaTimer = null; }
     const r = pending; pending = null;
-    $("calza").hidden = true;
+    setPhase("idle");
+    $("calzaMsg").textContent = "The pause after a rival's bid: call the count exact, or challenge it out of turn.";
     r(a);
   }
 
@@ -404,29 +407,48 @@
         : who + " countered your call: the stake is " + v.stake + "x.";
     }
     $("duelMsg").innerHTML = lead + " Your cup: <span class='cup'>" + cupHtml(v.hand) + "</span>";
+    setPhase("duel");
+    $("duelStand").disabled = false;
     $("duelStand").textContent = "Stand at " + v.stake + "x";
     $("duelStand").title = "cups up now; the loser pays " + v.stake + " " + unit;
-    $("duelEscalate").hidden = !v.canEscalate;
+    $("duelEscalate").disabled = !v.canEscalate;
     $("duelEscalate").textContent = "Escalate to " + v.nextStake + "x";
-    $("duelEscalate").title = who + " answers; a reveal then costs the loser " + v.nextStake + " " + unit;
-    $("duelFold").hidden = !v.canFold;
+    $("duelEscalate").title = v.canEscalate ? who + " answers; a reveal then costs the loser " + v.nextStake + " " + unit : "the stake is at its stop";
+    $("duelFold").disabled = !v.canFold;
     $("duelFold").textContent = (v.inSweep && !v.isBidder ? "Concede the link, pay " : "Fold, pay ") + v.foldPenalty;
-    $("duelFold").title = "no reveal on this bid; you pay " + v.foldPenalty + " " + (v.foldPenalty === 1 ? unit.slice(0, -1) : unit);
+    $("duelFold").title = v.canFold ? "no reveal on this bid; you pay " + v.foldPenalty + " " + (v.foldPenalty === 1 ? unit.slice(0, -1) : unit) : "a bidder never folds its own bid";
     $("duelHint").textContent = v.isBidder && !v.canFold ? "Your bid stands either way; you cannot fold it." : "";
-    $("duel").hidden = false;
     $("duel").scrollIntoView({ block: "nearest" });
   }
   function answerDuel(a) {
     if (!pending) return;
     const r = pending; pending = null;
-    $("duel").hidden = true; game.turn = -1;
+    setPhase("idle"); game.turn = -1;
+    $("duelMsg").textContent = "A duel you are in: stand, escalate, or fold.";
     r(a);
+  }
+  // Which row is live. Everything else is greyed with a title that says why.
+  function setPhase(p) {
+    game.phase = p;
+    $("turn").classList.toggle("on", p === "turn");
+    $("calza").classList.toggle("on", p === "window");
+    $("duel").classList.toggle("on", p === "duel");
+    const off = (ids, why) => ids.forEach((id) => { const e = $(id); e.disabled = true; e.title = why; });
+    if (p !== "turn") {
+      off(["challenge", "sweep", "sweepDepth", "bidTyped", "qty", "qtyUp", "qtyDown", "modeBtn"], "not your turn");
+      document.querySelectorAll("#menu .cell, #faces .face").forEach((b) => { b.disabled = true; });
+      $("turnMsg").textContent = game.over ? "" : "waiting on the table";
+    }
+    if (p !== "window") off(["calzaYes", "calzaChallenge", "calzaNo"], "only in the pause after a rival's bid");
+    if (p !== "duel") off(["duelStand", "duelEscalate", "duelFold"], "only in a duel you are in");
   }
   function showTurn() {
     if (!view || !pending) return;
     const v = view; view = null;
     game.turn = 0; game.view = v;
     renderSeats();
+    setPhase("turn");
+    ["qty", "qtyUp", "qtyDown"].forEach((id) => { $(id).disabled = false; $(id).title = ""; });
     $("cup").innerHTML = cupHtml(v.hand);
     $("unknown").textContent = v.unknown + " dice you can't see";
     // The floor, as a fixed grid: one column per face, a 飞 row and a 斋 row in
@@ -460,10 +482,12 @@
     game.pick = (v.standing && v.menu.length) ? { qty: v.menu[0].qty, face: v.menu[0].face, mode: v.menu[0].mode } : { qty: 1, face: 2, mode: 0 };
     snapQty();
     renderStepper();
-    $("challenge").disabled = !v.standing;
+    $("challenge").disabled = !v.standing; $("challenge").title = v.standing ? "cups up on the standing bid" : "no standing bid to call";
     // The sweep on offer: a run of recent bidders behind the standing bid.
     const run = v.sweep || [];
-    $("sweepWrap").hidden = run.length < 2;
+    $("sweep").disabled = run.length < 2; $("sweepDepth").disabled = run.length < 2;
+    $("sweep").title = run.length < 2 ? "no run of two or more bidders to sweep" : "challenge the run at once";
+    $("sweepWho").textContent = "";
     if (run.length >= 2) {
       const sel = $("sweepDepth"); sel.innerHTML = "";
       for (let d = 2; d <= run.length; d++) { const o = document.createElement("option"); o.value = d; o.textContent = d; sel.appendChild(o); }
@@ -473,7 +497,6 @@
       sel.onchange = () => { $("sweepWho").textContent = who(); };
     }
     $("turnMsg").textContent = v.standing ? "" : openLine(v.menu);
-    $("turn").hidden = false;
     $("turn").scrollIntoView({ block: "nearest" });
   }
   // The opening floors, read off the legal menu so they can never drift from
@@ -518,7 +541,7 @@
   function answer(i) {
     if (!pending) return;
     const r = pending; pending = null;
-    $("turn").hidden = true; game.turn = -1; game.last[0] = "";
+    setPhase("idle"); game.turn = -1; game.last[0] = "";
     r(i);
   }
   function answerTyped() {
@@ -544,6 +567,7 @@
       for (let s = 0; s < game.n; s++) if (game.markers[s] >= 0) mk[game.names[s]] = game.markers[s];
       save(STORE.markers, mk);
     }
+    setPhase("idle");
     $("matchEnd").hidden = false;
     $("matchEnd").textContent = (winner === 0 ? "You take the table." : seatName(winner) + " takes the table.") + (game.iou && game.markers[0] === 0 ? " Your markers are gone - you owe the house nothing." : "");
     renderRead(); renderRecord();
@@ -577,10 +601,19 @@
     if (calzaTimer) { clearInterval(calzaTimer); calzaTimer = null; }
     game = { n, names, dudo, iou, dice: new Array(n).fill(dudo ? 5 : 0), alive: new Array(n).fill(true), last: new Array(n).fill(""),
              tol: [info.player.tolerance].concat(seatsRows.map((r) => r.tolerance)), markers,
-             standing: null, bidder: -1, turn: -1, hand: 0, over: false, view: null, pick: null, stake: 1,
+             standing: null, bidder: -1, turn: -1, hand: 0, over: false, view: null, pick: null, stake: 1, phase: "idle",
+             rules: { chain: !dudo && !!(rules.mask & (1 << 1)), calza: !!(rules.mask & (1 << 7)), oot: !!(rules.mask & (1 << 8)), ck: rules.ck === 1 },
              log: ["# Liar's Dice " + (dudo ? "ship" : "bar") + " table, seed " + seed + ", build " + $("build").textContent,
                    "# cfg " + cfg, "# seats " + names.join(", ")] };
-    $("setup").hidden = true; $("table").hidden = false; $("matchEnd").hidden = true; $("reveal").hidden = true; $("duel").hidden = true; $("calza").hidden = true; $("again").hidden = true;
+    $("setup").hidden = true; $("table").hidden = false; $("matchEnd").hidden = true; $("reveal").hidden = true; $("again").hidden = true;
+    // One fixed action panel for the match: a rule that is off removes its
+    // buttons; everything else stays on the page and greys when not on offer.
+    $("turn").hidden = false;
+    $("sweepWrap").hidden = !game.rules.chain;
+    $("calza").hidden = !(game.rules.calza || game.rules.oot);
+    $("calzaYes").hidden = !game.rules.calza; $("calzaChallenge").hidden = !game.rules.oot;
+    $("duel").hidden = !game.rules.ck;
+    setPhase("idle");
     $("tableTitle").textContent = (dudo ? "The ship" : "The bar") + (iou ? " - IOU" : "");
     $("log").textContent = game.log.join("\n");
     renderSeats();

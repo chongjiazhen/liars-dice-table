@@ -53,7 +53,8 @@ input[type=text], input[type=number], select { font: inherit; padding: 3px 6px; 
 .faces .face .die { width: 1.7em; height: 1.7em; vertical-align: middle; }
 .faces .face.on { border-color: var(--felt); box-shadow: 0 0 0 2px var(--felt) inset; }
 button.big { padding: 8px 18px; font-weight: 600; }
-.reveal, .duel { border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 8px; }
+.reveal, .duel, .turn { border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 8px; padding-left: 8px; border-left: 3px solid transparent; }
+.turn.on, .duel.on { border-left-color: var(--accent); }
 .duel .verdict { font-size: 1.05rem; margin-bottom: 6px; }
 .sweep { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; }
 .sweep[hidden] { display: none; }
