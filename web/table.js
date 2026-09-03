@@ -147,14 +147,14 @@
   // in-character teach cards; this is the plain page 2 of each). Keyed by the
   // engine's short name so the list order stays the engine's.
   const RULE_HELP = {
-    "surrender": "When your bid is challenged you may fold instead of lifting the cup: a reduced penalty, and nobody sees your dice.",
-    "chain-kill": "A challenge can sweep a run of recent bidders at once, at a depth you pick. Each swept seat answers on its own last bid, and every one that was wrong pays.",
+    "surrender": "In a duel the challenger may fold instead of seeing the cups: it pays one (a drink or a die), the bid is deemed to have held, and nothing is revealed. A bidder never folds its own bid at this table.",
+    "chain-kill": "A challenge can sweep a run of recent bidders at once, at a depth you pick. Each swept seat answers on its own last bid: stand, escalate, or fold the link for one. Every bid that was wrong pays; if nobody stands, nothing is revealed and the sweeper pays every penalty.",
     "direction": "The seat that opens the hand chooses which way the bidding runs.",
     "must-pairs": "A cup with no pair is shaken again until it pairs. Bar only: with the ship's shrinking dice pool a reroll leaks nearly the whole hand.",
-    "counter-kill": "A challenged bidder can double the stake instead of lifting; the challenger can double back, escalate, or fold. The loser pays the stake that stood, with no ceiling but nerve.",
+    "counter-kill": "A challenged bidder can double the stake instead of lifting; the challenger can double back or fold. The loser pays the stake that stood, in full; it runs as deep as nerve allows, with a hard stop at 32x.",
     "+2 reverse": "Raising the count by two or more reverses the direction of play.",
-    "palifico": "When a player is down to one die the next round is played with aces counting only as aces, no wilds. Ship only: the bar's fixed five dice never reach one die.",
-    "calza": "After a rival's bid, anyone off-turn may call the count exact. Spot on heals a die (sobers a drink in the bar); a miss costs one.",
+    "palifico": "When a player drops to their last die, the next round is theirs: aces count only as aces, no wilds, and the face they open on is locked for the round, so the others may only raise the quantity (a seat that has had its own palifico round and is down to one die keeps the right to change the face). Once per player per match, never heads-up. Ship only: the bar's fixed five dice never reach one die.",
+    "calza": "After a rival's bid, anyone off-turn may call the count exact, with three or more still in and no palifico round running. Spot on heals a die (sobers a drink in the bar; nothing if the cup is full or the caller is sober); a miss costs one, and a miss at the brink is a knockout.",
     "out-of-turn challenge": "After a rival's bid you may challenge it at once, without waiting for your turn."
   };
   let helpOpen = null;   // the rule whose help is showing
