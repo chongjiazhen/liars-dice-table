@@ -48,25 +48,30 @@
     <div id="seatsView" class="seats"></div>
     <div id="standing" class="standing"></div>
     <div id="turn" class="turn" hidden>
-      <div class="row"><span>Your cup:</span> <span id="cup" class="cup"></span> <span class="hint" id="unknown"></span></div>
+      <div class="row cuprow"><span>Your cup</span> <span id="cup" class="cup"></span> <span class="hint" id="unknown"></span></div>
       <div id="menu" class="menu"></div>
-      <div class="row">
-        <label>Any legal bid: <input type="number" id="qty" min="1" size="3"> ×
-          <select id="face"><option value="1">⚀ 1</option><option value="2">⚁ 2</option><option value="3">⚂ 3</option><option value="4">⚃ 4</option><option value="5">⚄ 5</option><option value="6">⚅ 6</option></select></label>
+      <div class="row stepper">
+        <span class="hint">or any legal raise:</span>
+        <span class="qty"><button id="qtyDown" class="step" title="fewer">−</button><input type="number" id="qty" min="1"><button id="qtyUp" class="step" title="more">+</button></span>
+        <span>×</span>
+        <span id="faces" class="faces"></span>
+        <label id="literalWrap" class="literal"><input type="checkbox" id="literal"> 1s literal</label>
         <button id="bidTyped">Bid</button>
-        <button id="challenge" class="danger">Challenge</button>
+      </div>
+      <div class="row">
+        <button id="challenge" class="danger big">Challenge</button>
         <span id="turnMsg" class="hint"></span>
       </div>
     </div>
     <div id="reveal" class="reveal" hidden></div>
     <div id="matchEnd" class="matchend" hidden></div>
-    <details class="row" open>
+    <button id="again" hidden>Sit down again</button>
+    <details class="row">
       <summary>Hand log</summary>
       <pre id="log" class="log"></pre>
       <button id="copyLog">Copy match log</button> <span id="copyMsg" class="hint"></span>
     </details>
     <p class="hint">This is the host-sim table: the same match loop every difficulty number was measured on, with you at seat 0. The AI still takes these decisions for you in this cut: surrender or counter-kill in a duel, calza, chain-kill sweeps, out-of-turn challenges.</p>
-    <button id="again">Sit down again</button>
   </section>
 
   <section id="reporting" class="panel">

@@ -6,7 +6,7 @@ body { margin: 0; font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-ser
 h1 { margin: 0; font-size: 1.8rem; }
 h2 { margin: 0 0 8px; font-size: 1.15rem; }
 .sub { margin: 4px 0 8px; color: var(--muted); }
-.readline { font-style: italic; margin: 0 0 12px; }
+.readline { margin: 0 0 12px; color: var(--felt); font-weight: 600; }
 .panel { border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin: 12px 0; }
 .row { margin: 8px 0; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
 .gap { margin-left: 6px; }
@@ -24,13 +24,37 @@ input[type=text], input[type=number], select { font: inherit; padding: 3px 6px; 
 .seat.turn { box-shadow: 0 0 0 2px var(--accent) inset; }
 .seat.out { opacity: 0.45; }
 .seat .name { font-weight: 600; }
-.seat .stat { font-size: 0.9rem; color: var(--muted); }
+.seat .stat { font-size: 0.85rem; color: var(--muted); }
+.seat .last { font-size: 0.9rem; min-height: 1.4em; margin-top: 2px; }
+.seat .act { color: var(--accent); font-weight: 600; }
 .standing { font-size: 1.2rem; margin: 6px 0; min-height: 1.6em; }
-.cup { font-size: 1.7rem; letter-spacing: 2px; }
+.die { width: 1.35em; height: 1.35em; vertical-align: -0.35em; }
+.die rect { fill: #fff; stroke: #333; stroke-width: 1.2; }
+.die circle { fill: #222; }
+.die.one circle { fill: var(--accent); }
+@media (prefers-color-scheme: dark) { .die rect { fill: #f2eee4; } }
+.cup .die { width: 2.2em; height: 2.2em; margin-right: 4px; vertical-align: middle; }
+.cuprow { align-items: center; }
+.lit { font-size: 0.75rem; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 0 4px; vertical-align: middle; }
 .menu { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
-.menu button { padding: 4px 10px; }
+.menu button { padding: 6px 10px; }
+.menu button b { font-size: 1.1rem; }
+.stepper { gap: 6px 10px; }
+.stepper .qty { display: inline-flex; align-items: center; }
+.stepper .qty input { width: 3.2em; text-align: center; margin: 0 2px; }
+.stepper .step { padding: 4px 10px; font-weight: 700; }
+.faces { display: inline-flex; gap: 3px; }
+.faces .face { padding: 3px 4px; line-height: 0; }
+.faces .face .die { width: 1.7em; height: 1.7em; vertical-align: middle; }
+.faces .face.on { border-color: var(--felt); box-shadow: 0 0 0 2px var(--felt) inset; }
+.literal { font-size: 0.9rem; }
+button.big { padding: 8px 18px; font-weight: 600; }
 .reveal { border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 8px; }
-.reveal .cups { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px 12px; }
+.reveal .verdict { font-size: 1.05rem; margin-bottom: 6px; }
+.reveal .cups { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 4px 12px; margin-bottom: 8px; }
+.reveal .cupline { white-space: nowrap; }
+.reveal .cupline .who { display: inline-block; min-width: 3.2em; font-weight: 600; }
+.reveal .cupline .cup .die { width: 1.6em; height: 1.6em; margin-right: 1px; }
 .matchend { font-weight: 600; margin: 8px 0; }
 .log { max-height: 220px; overflow: auto; background: rgba(127,127,127,0.08); padding: 8px; font-size: 0.85rem; white-space: pre-wrap; }
 .record { font-size: 0.9rem; color: var(--muted); }

@@ -1,16 +1,40 @@
 // web/table.js - the browser table over dist/table.js (the host sim in wasm).
 // Contract with tools/web/bridge.cpp: window.table.decide(view) -> Promise<int>,
 // window.table.event(ev); Module.ccall("table_info"), Module.ccall("play_match").
+//
+// Events arrive synchronously from inside the wasm run, so the page queues them
+// and renders the queue on a timer: each AI action gets a beat, a reveal waits
+// for a click, and your turn panel opens only once the queue has drained. The
+// engine is blocked in the decider meanwhile (Asyncify), so nothing is lost.
+// `?fast=1` drops every delay and auto-continues reveals (the drive.js gate).
 (function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
-  const DIE = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
   const STORE = { est: "ld.estimate", record: "ld.record", markers: "ld.markers" };
+  const FAST = /[?&]fast=1/.test(location.search);
+  const BEAT = FAST ? 0 : 550;          // ms per AI action
+  const HAND_BEAT = FAST ? 0 : 900;     // ms on a new deal
 
   let M = null;        // the wasm module
   let info = null;     // table_info()
   let game = null;     // the live match's state
   let pending = null;  // the resolve of the decision the page owes the engine
+  let view = null;     // the decision view waiting to be shown
+  let queue = [];      // events not yet rendered
+  let draining = false;
+  let onContinue = null;   // a reveal waiting for its click
+
+  // ---- dice ---------------------------------------------------------------------
+  const PIPS = { 1: [[1, 1]], 2: [[0, 0], [2, 2]], 3: [[0, 0], [1, 1], [2, 2]],
+                 4: [[0, 0], [0, 2], [2, 0], [2, 2]], 5: [[0, 0], [0, 2], [1, 1], [2, 0], [2, 2]],
+                 6: [[0, 0], [0, 1], [0, 2], [2, 0], [2, 1], [2, 2]] };
+  function die(n, cls) {
+    const pips = (PIPS[n] || []).map(([x, y]) => "<circle cx='" + (5 + x * 6) + "' cy='" + (5 + y * 6) + "' r='1.7'/>").join("");
+    return "<svg class='die" + (cls ? " " + cls : "") + (n === 1 ? " one" : "") + "' viewBox='0 0 22 22' aria-label='" + n + "'><rect x='1' y='1' width='20' height='20' rx='4'/>" + pips + "</svg>";
+  }
+  function cupHtml(hand) { return hand.map((d) => die(d)).join(""); }
+  function bidHtml(b) { return "<b>" + b.qty + "</b> × " + die(b.face) + (b.mode === 1 ? " <span class='lit'>1s literal</span>" : ""); }
+  function bidText(b) { return b.qty + " × " + b.face + (b.mode === 1 ? " (ones literal)" : ""); }
 
   // ---- storage ---------------------------------------------------------------
   function load(key, dflt) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : dflt; } catch (e) { return dflt; } }
@@ -30,7 +54,7 @@
     const rec = load(STORE.record, {});
     const parts = Object.keys(rec).sort().map((h) => h + " " + rec[h].w + "-" + rec[h].l);
     const streak = load(STORE.record + ".streak", 0);
-    $("record").textContent = parts.length ? "Record: " + parts.join(" · ") + (streak ? " · streak " + (streak > 0 ? "W" : "L") + Math.abs(streak) : "") : "";
+    $("record").textContent = parts.length ? "Tables with: " + parts.join(" · ") + (streak ? " · streak " + (streak > 0 ? "W" : "L") + Math.abs(streak) : "") : "";
   }
 
   // ---- setup --------------------------------------------------------------------
@@ -104,9 +128,8 @@
     renderRivals(true); renderRules();   // a new format seats its own cast first
   }
 
-  // ---- the match --------------------------------------------------------------------
-  function seatName(s) { return game.names[s]; }
-  function bidText(b) { return b.qty + " × " + DIE[b.face] + (b.mode === 1 ? " (ones literal)" : ""); }
+  // ---- the table ----------------------------------------------------------------
+  function seatName(s) { return s >= 0 && s < game.n ? game.names[s] : "nobody"; }
   function log(line) { game.log.push(line); $("log").textContent = game.log.join("\n"); $("log").scrollTop = 1e9; }
 
   function renderSeats() {
@@ -114,95 +137,160 @@
     for (let s = 0; s < game.n; s++) {
       const d = document.createElement("div");
       d.className = "seat" + (s === 0 ? " you" : "") + (s === game.turn ? " turn" : "") + (game.alive[s] ? "" : " out");
-      const stat = game.dudo ? (game.dice[s] + " dice") : (game.dice[s] + " drinks / " + game.tol[s]);
-      const mk = game.iou && game.markers[s] >= 0 ? "<div class='stat'>markers " + game.markers[s] + "</div>" : "";
-      d.innerHTML = "<div class='name'>" + seatName(s) + "</div><div class='stat'>" + stat + "</div>" + mk;
+      const stat = game.dudo ? (game.dice[s] + (game.dice[s] === 1 ? " die" : " dice")) : (game.dice[s] + " / " + game.tol[s] + " drinks");
+      const mk = game.iou && game.markers[s] >= 0 ? " · " + game.markers[s] + " markers" : "";
+      d.innerHTML = "<div class='name'>" + seatName(s) + "</div><div class='stat'>" + stat + mk + "</div><div class='last'>" + (game.last[s] || "&nbsp;") + "</div>";
       box.appendChild(d);
     }
-    $("standing").textContent = game.standing ? "Standing: " + bidText(game.standing) + " by " + seatName(game.bidder) : (game.over ? "" : "No bid yet - hand " + (game.hand + 1));
+    $("standing").innerHTML = game.standing
+      ? "Standing: " + bidHtml(game.standing) + " <span class='hint'>by " + seatName(game.bidder) + "</span>"
+      : (game.over ? "" : "Hand " + (game.hand + 1) + " · no bid yet");
   }
 
-  function onEvent(ev) {
-    if (ev.dice) { game.dice = ev.dice.slice(); }
+  // Apply one event to the state and the screen. Returns the delay before the next.
+  function apply(ev) {
+    if (ev.dice) game.dice = ev.dice.slice();
+    let wait = BEAT;
     switch (ev.kind) {
       case "HandStart":
         game.hand = ev.hand; game.standing = null; game.bidder = -1; game.turn = ev.seat;
+        game.last = game.last.map((_, s) => (game.alive[s] ? "" : "out"));
         $("reveal").hidden = true;
         log("H" + (ev.hand + 1) + " deal, " + seatName(ev.seat) + " opens" + (game.dudo ? "  dice " + ev.dice.join("/") : "  drinks " + ev.dice.join("/")));
+        wait = HAND_BEAT;
         break;
       case "Bid":
-        game.standing = ev.bid; game.bidder = ev.seat; game.turn = -1;
+        game.standing = ev.bid; game.bidder = ev.seat; game.turn = (ev.seat + 1) % game.n;
+        while (!game.alive[game.turn]) game.turn = (game.turn + 1) % game.n;
+        game.last[ev.seat] = "bid " + bidHtml(ev.bid);
         log("  " + seatName(ev.seat) + " bids " + bidText(ev.bid));
         break;
       case "Challenge":
         game.turn = -1;
+        game.last[ev.seat] = "<span class='act'>challenges " + seatName(ev.other) + "</span>";
         log("  " + seatName(ev.seat) + " challenges " + seatName(ev.other));
         break;
       case "Calza":
+        game.turn = -1; game.calza = ev.count > 0;
+        game.last[ev.seat] = "<span class='act'>calls it exact</span>";
         log("  " + seatName(ev.seat) + " calls it exact" + (ev.count > 0 ? " - and it is (+1 die)" : " - it is not (-1 die)"));
         break;
       case "Reveal": {
         const box = $("reveal"); box.hidden = false;
-        const cups = ev.hands.map((h, s) => "<div>" + seatName(s) + ": <span class='cup'>" + h.map((d) => DIE[d]).join("") + "</span></div>").join("");
-        box.innerHTML = "<div>Reveal: " + bidText(ev.bid) + " - " + ev.count + " on the table. " + seatName(ev.seat) + " pays.</div><div class='cups'>" + cups + "</div>";
-        log("  reveal: " + ev.count + " × " + DIE[ev.bid.face] + " on the table; " + seatName(ev.seat) + " loses");
+        const cups = ev.hands.map((h, s) => h.length ? "<div class='cupline'><span class='who'>" + seatName(s) + "</span> <span class='cup'>" + cupHtml(h) + "</span></div>" : "").join("");
+        const exact = game.calza !== undefined;
+        const verdict = exact
+          ? (game.calza ? seatName(ev.seat) + " called it exactly right." : seatName(ev.seat) + " called exact and missed.")
+          : seatName(ev.seat) + " loses the hand.";
+        box.innerHTML = "<div class='verdict'>" + bidHtml(ev.bid) + " · <b>" + ev.count + "</b> on the table. " + verdict + "</div><div class='cups'>" + cups + "</div>" +
+                        (FAST ? "" : "<button id='continue' class='primary'>Continue</button>");
+        delete game.calza;
+        log("  reveal: " + ev.count + " × " + ev.bid.face + " on the table; " + seatName(ev.seat) + (exact ? " called exact" : " loses"));
+        if (!FAST) { wait = -1; $("continue").addEventListener("click", () => { $("continue").disabled = true; const c = onContinue; onContinue = null; if (c) c(); }); }
         break;
       }
       case "Surrender":
+        game.last[ev.seat] = "<span class='act'>folds</span>";
         log("  " + seatName(ev.seat) + " folds the challenge (no reveal)");
         break;
       case "Penalty":
+        game.last[ev.seat] = "pays " + ev.count + (game.dudo ? (Math.abs(ev.count) === 1 ? " die" : " dice") : (Math.abs(ev.count) === 1 ? " drink" : " drinks"));
         log("  " + seatName(ev.seat) + " pays " + ev.count + (game.dudo ? " die" : " drink") + (Math.abs(ev.count) === 1 ? "" : "s"));
         break;
       case "KnockOut":
-        game.alive[ev.seat] = false;
+        game.alive[ev.seat] = false; game.last[ev.seat] = "<span class='act'>out</span>";
         log("  " + seatName(ev.seat) + " is out" + (ev.other >= 0 ? " (" + seatName(ev.other) + ")" : ""));
         break;
       case "Ledger":
         if (game.markers[ev.seat] >= 0) game.markers[ev.seat] = Math.max(0, game.markers[ev.seat] + ev.count);
         log("  " + seatName(ev.seat) + (ev.count < 0 ? " shreds " + (-ev.count) : " takes on " + ev.count) + " marker" + (Math.abs(ev.count) === 1 ? "" : "s"));
+        wait = 0;
         break;
       case "MatchEnd":
         game.over = true; game.turn = -1; game.winner = ev.seat;
         log("Match over after " + ev.count + " hands: " + seatName(ev.seat) + " is the last cup standing.");
+        wait = 0;
         break;
       case "Estimate":
         save(STORE.est, { ct: ev.ct, bc: ev.bc, br: ev.br, n: ev.n });
         finishMatch(ev.winner);
+        wait = 0;
         break;
     }
     renderSeats();
+    return wait;
   }
 
-  function decide(view) {
-    game.turn = 0; game.view = view;
+  function onEvent(ev) { queue.push(ev); drain(); }
+  function drain() {
+    if (draining) return;
+    if (!queue.length) { showTurn(); return; }
+    draining = true;
+    const wait = apply(queue.shift());
+    const next = () => { draining = false; drain(); };
+    if (wait < 0) onContinue = next;
+    else if (wait === 0) next();
+    else setTimeout(next, wait);
+  }
+
+  // ---- your turn ----------------------------------------------------------------
+  function decide(v) {
+    view = v;
+    return new Promise((resolve) => { pending = resolve; drain(); });
+  }
+  function showTurn() {
+    if (!view || !pending) return;
+    const v = view; view = null;
+    game.turn = 0; game.view = v;
     renderSeats();
-    $("cup").textContent = view.hand.map((d) => DIE[d]).join("");
-    $("unknown").textContent = view.unknown + " dice you can't see";
+    $("cup").innerHTML = cupHtml(v.hand);
+    $("unknown").textContent = v.unknown + " dice you can't see";
+    // Suggested raises: the cheapest legal raise on each face (and each mode),
+    // lowest first - one row of buttons, the stepper covers the rest.
     const menu = $("menu"); menu.innerHTML = "";
-    view.menu.forEach((b, i) => {
-      const btn = document.createElement("button"); btn.textContent = bidText(b);
-      btn.addEventListener("click", () => answer(i));
+    const cheapest = new Map();
+    v.menu.forEach((b) => { const k = b.face + ":" + b.mode; if (!cheapest.has(k)) cheapest.set(k, b); });
+    const picks = Array.from(cheapest.values()).sort((a, b) => a.qty - b.qty || a.face - b.face).slice(0, 8);
+    picks.forEach((b) => {
+      const btn = document.createElement("button"); btn.innerHTML = bidHtml(b);
+      btn.addEventListener("click", () => answer(v.menu.indexOf(b)));
       menu.appendChild(btn);
     });
-    $("challenge").disabled = !view.standing;
-    $("turnMsg").textContent = view.standing ? "" : "You open.";
-    $("qty").value = view.menu.length ? view.menu[0].qty : "";
-    $("face").value = view.menu.length ? view.menu[0].face : "2";
+    // The stepper: any legal raise.
+    game.pick = v.menu.length ? { qty: v.menu[0].qty, face: v.menu[0].face, mode: v.menu[0].mode } : { qty: 1, face: 2, mode: 0 };
+    $("literalWrap").hidden = !v.menu.some((b) => b.mode === 1);
+    renderStepper();
+    $("challenge").disabled = !v.standing;
+    $("turnMsg").textContent = v.standing ? "" : "You open.";
     $("turn").hidden = false;
     $("turn").scrollIntoView({ block: "nearest" });
-    return new Promise((resolve) => { pending = resolve; });
+  }
+  function legalIndex(p) { return game.view.menu.findIndex((b) => b.qty === p.qty && b.face === p.face && b.mode === p.mode); }
+  function renderStepper() {
+    const p = game.pick;
+    $("qty").value = p.qty;
+    const faces = $("faces"); faces.innerHTML = "";
+    for (let f = 1; f <= 6; f++) {
+      const b = document.createElement("button"); b.className = "face" + (f === p.face ? " on" : ""); b.dataset.face = f; b.innerHTML = die(f);
+      b.addEventListener("click", () => { game.pick.face = f; renderStepper(); });
+      faces.appendChild(b);
+    }
+    $("literal").checked = p.mode === 1;
+    const ok = legalIndex(p) >= 0;
+    $("bidTyped").disabled = !ok;
+    $("bidTyped").textContent = ok ? "Bid " + p.qty + " × " + p.face : "Not a legal raise";
   }
   function answer(i) {
     if (!pending) return;
     const r = pending; pending = null;
-    $("turn").hidden = true; game.turn = -1;
+    $("turn").hidden = true; game.turn = -1; game.last[0] = "";
     r(i);
   }
   function answerTyped() {
-    const q = parseInt($("qty").value, 10), f = parseInt($("face").value, 10);
-    const i = game.view.menu.findIndex((b) => b.qty === q && b.face === f);
-    if (i < 0) { $("turnMsg").textContent = q + " × " + DIE[f] + " is not a legal raise here."; return; }
+    const q = parseInt($("qty").value, 10);
+    if (q > 0) game.pick.qty = q;
+    const i = legalIndex(game.pick);
+    if (i < 0) { renderStepper(); return; }
     answer(i);
   }
 
@@ -251,9 +339,10 @@
       const coll = names.map((h) => (h === "Sol" || h === "Lark") ? 1 : 0);
       cfg += ";iou=1;years=" + markers.join(",") + ";coll=" + coll.join(",");
     }
-    game = { n, names, dudo, iou, dice: new Array(n).fill(dudo ? 5 : 0), alive: new Array(n).fill(true),
+    queue = []; draining = false; onContinue = null; view = null; pending = null;
+    game = { n, names, dudo, iou, dice: new Array(n).fill(dudo ? 5 : 0), alive: new Array(n).fill(true), last: new Array(n).fill(""),
              tol: [info.player.tolerance].concat(seatsRows.map((r) => r.tolerance)), markers,
-             standing: null, bidder: -1, turn: -1, hand: 0, over: false, view: null,
+             standing: null, bidder: -1, turn: -1, hand: 0, over: false, view: null, pick: null,
              log: ["# Liar's Dice " + (dudo ? "ship" : "bar") + " table, seed " + seed + ", build " + $("build").textContent,
                    "# cfg " + cfg, "# seats " + names.join(", ")] };
     $("setup").hidden = true; $("table").hidden = false; $("matchEnd").hidden = true; $("reveal").hidden = true; $("again").hidden = true;
@@ -293,7 +382,11 @@
     $("skill").addEventListener("input", () => { $("skillv").textContent = parseFloat($("skill").value).toFixed(2); });
     $("play").addEventListener("click", play);
     $("bidTyped").addEventListener("click", answerTyped);
+    $("qty").addEventListener("input", () => { const q = parseInt($("qty").value, 10); if (q > 0) { game.pick.qty = q; renderStepper(); } });
     $("qty").addEventListener("keydown", (e) => { if (e.key === "Enter") answerTyped(); });
+    $("qtyUp").addEventListener("click", () => { game.pick.qty++; renderStepper(); });
+    $("qtyDown").addEventListener("click", () => { if (game.pick.qty > 1) game.pick.qty--; renderStepper(); });
+    $("literal").addEventListener("change", () => { game.pick.mode = $("literal").checked ? 1 : 0; renderStepper(); });
     $("challenge").addEventListener("click", () => answer(-1));
     $("copyLog").addEventListener("click", copyLog);
     $("again").addEventListener("click", () => { $("table").hidden = true; $("setup").hidden = false; renderRivals(); });
