@@ -283,10 +283,11 @@
     view = v;
     return new Promise((resolve) => { pending = resolve; drain(); });
   }
-  // ---- the calza window ---------------------------------------------------------
-  // The device gives the player the AI's think-pause to call exact; here the
-  // window is a timed panel that passes on its own. FAST passes at once.
-  function calza(v) {
+  // ---- the off-turn window ------------------------------------------------------
+  // The device gives the player the AI's think-pause to call exact or to
+  // challenge out of turn; here the window is a timed panel that passes on
+  // its own. FAST passes at once.
+  function interrupt(v) {
     if (FAST) return Promise.resolve(0);
     calzaView = v;
     return new Promise((resolve) => { pending = resolve; drain(); });
@@ -296,7 +297,12 @@
     const v = calzaView; calzaView = null;
     const heal = game.dudo ? (v.heal ? "a die back" : "nothing (your cup is full)") : (v.heal ? "sobers you a drink" : "nothing (you are sober)");
     const miss = game.dudo ? "a die" : "a drink";
-    $("calzaMsg").innerHTML = seatName(v.bidder) + " bid " + bidHtml(v.standing) + ". Call it exact? A hit is " + heal + ", a miss costs " + miss + ". Your cup: <span class='cup'>" + cupHtml(v.hand) + "</span>";
+    const offers = [];
+    if (v.canCalza) offers.push("call it exact (a hit is " + heal + ", a miss costs " + miss + ")");
+    if (v.canChallenge) offers.push("challenge it now, out of turn");
+    $("calzaMsg").innerHTML = seatName(v.bidder) + " bid " + bidHtml(v.standing) + ". You may " + offers.join(", or ") + ". Your cup: <span class='cup'>" + cupHtml(v.hand) + "</span>";
+    $("calzaYes").hidden = !v.canCalza;
+    $("calzaChallenge").hidden = !v.canChallenge;
     $("calzaHint").textContent = "";
     $("calza").hidden = false;
     let left = beat(CALZA_WINDOW);
@@ -510,7 +516,7 @@
   }
 
   // ---- boot -------------------------------------------------------------------------
-  window.table = { decide, duel, calza, event: onEvent };
+  window.table = { decide, duel, interrupt, event: onEvent };
   fetch("dist/BUILD").then((r) => r.text()).then((t) => { $("build").textContent = t.trim(); }).catch(() => {});
   createTable().then((mod) => {
     M = mod;
@@ -530,6 +536,7 @@
     $("challenge").addEventListener("click", () => answer(-1));
     $("sweep").addEventListener("click", () => answer(-(parseInt($("sweepDepth").value, 10) + 1)));
     $("calzaYes").addEventListener("click", () => answerCalza(1));
+    $("calzaChallenge").addEventListener("click", () => answerCalza(2));
     $("calzaNo").addEventListener("click", () => answerCalza(0));
     $("duelStand").addEventListener("click", () => answerDuel(0));
     $("duelEscalate").addEventListener("click", () => answerDuel(1));
