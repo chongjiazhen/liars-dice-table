@@ -1,0 +1,7 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Feature idea
+    about: >
+      This beta is for how the AI plays. A feature request will sit for now -
+      not unwelcome, just not actionable yet.
+    url: https://github.com/chongjiazhen/liars-dice-table#what-it-is-not

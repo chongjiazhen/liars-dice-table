@@ -1,0 +1,36 @@
+:root { color-scheme: light dark; --ink: #1c1c1c; --paper: #f6f3ec; --line: #c9c2b4; --felt: #2f5d3a; --accent: #8a3b12; --muted: #6b6558; }
+@media (prefers-color-scheme: dark) { :root { --ink: #ece7dc; --paper: #1d1b18; --line: #4a463f; --felt: #1f3f28; --accent: #e08a52; --muted: #a39c8c; } }
+* { box-sizing: border-box; }
+body { margin: 0; font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--paper); }
+#app { max-width: 720px; margin: 0 auto; padding: 16px; }
+h1 { margin: 0; font-size: 1.8rem; }
+h2 { margin: 0 0 8px; font-size: 1.15rem; }
+.sub { margin: 4px 0 8px; color: var(--muted); }
+.readline { font-style: italic; margin: 0 0 12px; }
+.panel { border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin: 12px 0; }
+.row { margin: 8px 0; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.gap { margin-left: 6px; }
+.hint { color: var(--muted); font-size: 0.9rem; }
+.picks { display: flex; flex-wrap: wrap; gap: 6px 12px; }
+.picks label { white-space: nowrap; }
+button { font: inherit; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--ink); cursor: pointer; }
+button.primary { background: var(--felt); color: #fff; border-color: var(--felt); }
+button.danger { border-color: var(--accent); color: var(--accent); }
+button:disabled { opacity: 0.5; cursor: default; }
+input[type=text], input[type=number], select { font: inherit; padding: 3px 6px; }
+.seats { display: grid; grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); gap: 8px; margin: 8px 0; }
+.seat { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+.seat.you { border-color: var(--felt); }
+.seat.turn { box-shadow: 0 0 0 2px var(--accent) inset; }
+.seat.out { opacity: 0.45; }
+.seat .name { font-weight: 600; }
+.seat .stat { font-size: 0.9rem; color: var(--muted); }
+.standing { font-size: 1.2rem; margin: 6px 0; min-height: 1.6em; }
+.cup { font-size: 1.7rem; letter-spacing: 2px; }
+.menu { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.menu button { padding: 4px 10px; }
+.reveal { border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 8px; }
+.reveal .cups { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px 12px; }
+.matchend { font-weight: 600; margin: 8px 0; }
+.log { max-height: 220px; overflow: auto; background: rgba(127,127,127,0.08); padding: 8px; font-size: 0.85rem; white-space: pre-wrap; }
+.record { font-size: 0.9rem; color: var(--muted); }

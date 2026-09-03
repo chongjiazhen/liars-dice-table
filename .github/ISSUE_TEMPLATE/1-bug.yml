@@ -1,0 +1,33 @@
+name: Bug
+description: Something broke, froze, or resolved a hand the rules do not explain.
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        One problem per report, please - several in one thread cannot be closed
+        separately. The match log is the report: it carries the seed and the
+        build, so the hand can be replayed exactly.
+  - type: textarea
+    id: log
+    attributes:
+      label: Match log
+      description: Press "Copy match log" under the table and paste it here.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+      description: Which hand in the log, and what the table did that it should not have.
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser
+      placeholder: Chrome 140 on Windows, Safari on iPhone, ...
+    validations:
+      required: false

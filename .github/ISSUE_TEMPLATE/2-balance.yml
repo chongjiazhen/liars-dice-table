@@ -1,0 +1,53 @@
+name: Balance
+description: A rival that is too strong, too weak, or a match that ended too fast or dragged.
+title: "[BALANCE] "
+labels: ["balance"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Rough counts are fine. "Wren went out in about eight hands, twice" is a
+        usable data point; a precise number from one match is not more useful
+        than an approximate one from three.
+  - type: dropdown
+    id: format
+    attributes:
+      label: Format
+      options:
+        - Bar
+        - Ship (Dudo)
+        - Ship, IOU mode
+    validations:
+      required: true
+  - type: input
+    id: seats
+    attributes:
+      label: How many at the table, and who
+      description: Including you.
+      placeholder: "4 - Rook, Bram, Yael"
+    validations:
+      required: false
+  - type: textarea
+    id: observation
+    attributes:
+      label: What felt off
+      description: >
+        Which rival, and in which direction - too strong, too weak, too
+        predictable. Roughly how many hands until someone went out, and who.
+    validations:
+      required: true
+  - type: textarea
+    id: rules
+    attributes:
+      label: House rules and skill setting
+      description: The "House rules" line on the setup panel, and whether the skill dial was on.
+    validations:
+      required: false
+  - type: textarea
+    id: log
+    attributes:
+      label: A match log, if you have one
+      description: Press "Copy match log" under the table. Optional for balance, but it lets the match be replayed.
+      render: text
+    validations:
+      required: false

@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Liar's Dice - the table</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="table.css">
+</head>
+<body>
+<main id="app">
+  <header>
+    <h1>Liar's Dice</h1>
+    <p class="sub">Chinese-variant Liar's Dice against a characterful AI. Beta - <a href="#reporting">how to report</a>.</p>
+    <p id="readline" class="readline">Loading the table...</p>
+  </header>
+
+  <section id="setup" class="panel">
+    <h2>Sit down</h2>
+    <div class="row">
+      <label><input type="radio" name="format" value="bar" checked> Bar</label>
+      <label><input type="radio" name="format" value="dudo"> Ship (Dudo)</label>
+      <label class="gap">Seats <select id="seats"><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select></label>
+      <label class="gap"><input type="checkbox" id="iou"> IOU mode <span class="hint">(ship only: Cove is the house, you and the crew hold markers)</span></label>
+    </div>
+    <div class="row">
+      <span>Rivals</span>
+      <div id="rivals" class="picks"></div>
+    </div>
+    <div class="row">
+      <label><input type="checkbox" id="skillRoster" checked> each rival's own skill</label>
+      <label class="gap">or all at <input type="range" id="skill" min="0" max="1" step="0.05" value="0.5" disabled> <span id="skillv">0.50</span></label>
+    </div>
+    <details class="row">
+      <summary>House rules <span id="rulesSummary" class="hint"></span></summary>
+      <div id="rules" class="picks"></div>
+      <p class="hint">Each format opens on its stock rules. The others are the other table's, playable here too.</p>
+    </details>
+    <div class="row">
+      <label>Seed <input type="text" id="seed" size="10" placeholder="random"></label>
+      <button id="play" class="primary">Deal</button>
+    </div>
+    <div id="record" class="record"></div>
+  </section>
+
+  <section id="table" class="panel" hidden>
+    <h2 id="tableTitle">The table</h2>
+    <div id="seatsView" class="seats"></div>
+    <div id="standing" class="standing"></div>
+    <div id="turn" class="turn" hidden>
+      <div class="row"><span>Your cup:</span> <span id="cup" class="cup"></span> <span class="hint" id="unknown"></span></div>
+      <div id="menu" class="menu"></div>
+      <div class="row">
+        <label>Any legal bid: <input type="number" id="qty" min="1" size="3"> ×
+          <select id="face"><option value="1">⚀ 1</option><option value="2">⚁ 2</option><option value="3">⚂ 3</option><option value="4">⚃ 4</option><option value="5">⚄ 5</option><option value="6">⚅ 6</option></select></label>
+        <button id="bidTyped">Bid</button>
+        <button id="challenge" class="danger">Challenge</button>
+        <span id="turnMsg" class="hint"></span>
+      </div>
+    </div>
+    <div id="reveal" class="reveal" hidden></div>
+    <div id="matchEnd" class="matchend" hidden></div>
+    <details class="row" open>
+      <summary>Hand log</summary>
+      <pre id="log" class="log"></pre>
+      <button id="copyLog">Copy match log</button> <span id="copyMsg" class="hint"></span>
+    </details>
+    <p class="hint">This is the host-sim table: the same match loop every difficulty number was measured on, with you at seat 0. The AI still takes these decisions for you in this cut: surrender or counter-kill in a duel, calza, chain-kill sweeps, out-of-turn challenges.</p>
+    <button id="again">Sit down again</button>
+  </section>
+
+  <section id="reporting" class="panel">
+    <h2>Reporting</h2>
+    <p>Something felt wrong, too easy, too hard, or broke? Copy the match log above and paste it into an issue on the repository this page is served from. The log carries the seed and the build, so the hand can be replayed exactly.</p>
+    <p class="hint">Build <span id="build">?</span>. The table remembers you in this browser only: <a href="#" id="forget">forget me</a> · <a href="#" id="resetMarkers">reset markers</a>.</p>
+  </section>
+</main>
+<script src="dist/table.js"></script>
+<script src="table.js"></script>
+</body>
+</html>
