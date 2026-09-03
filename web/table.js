@@ -361,11 +361,13 @@
     const miss = game.dudo ? "a die" : "a drink";
     const offers = [];
     if (v.canCalza) offers.push("call it exact (a hit is " + heal + ", a miss costs " + miss + ")");
-    if (v.canChallenge) offers.push("challenge it now, out of turn");
+    if (v.canChallenge) offers.push("Challenge it now, out of turn");
     $("calzaMsg").innerHTML = seatName(v.bidder) + " bid " + bidHtml(v.standing) + ". You may " + offers.join(", or ") + ". Your cup: <span class='cup'>" + cupHtml(v.hand) + "</span>";
     setPhase("window");
     $("calzaYes").disabled = !v.canCalza; $("calzaYes").title = v.canCalza ? "call the count exact" : "no calza now";
-    $("calzaChallenge").disabled = !v.canChallenge; $("calzaChallenge").title = v.canChallenge ? "challenge the bid out of turn" : "no out-of-turn challenge now";
+    // The one Challenge button serves the window too: live only under the out-of-turn rule.
+    $("challenge").disabled = !v.canChallenge;
+    $("challenge").title = v.canChallenge ? "challenge the bid out of turn" : (game.rules.oot ? "no out-of-turn challenge now" : "not your turn");
     $("calzaNo").disabled = false; $("calzaNo").title = "let it pass";
     $("calzaHint").textContent = "";
     $("calza").scrollIntoView({ block: "nearest" });
@@ -379,7 +381,7 @@
     if (calzaTimer) { clearInterval(calzaTimer); calzaTimer = null; }
     const r = pending; pending = null;
     setPhase("idle");
-    $("calzaMsg").textContent = "The pause after a rival's bid: call the count exact, or challenge it out of turn.";
+    $("calzaMsg").textContent = "The pause after a rival's bid: call the count exact, or Challenge it out of turn.";
     r(a);
   }
 
@@ -435,11 +437,11 @@
     $("duel").classList.toggle("on", p === "duel");
     const off = (ids, why) => ids.forEach((id) => { const e = $(id); e.disabled = true; e.title = why; });
     if (p !== "turn") {
-      off(["challenge", "sweep", "sweepDepth", "bidTyped", "qty", "qtyUp", "qtyDown", "modeBtn"], "not your turn");
+      off(["challenge", "sweepDepth", "bidTyped", "qty", "qtyUp", "qtyDown", "modeBtn"], "not your turn");
       document.querySelectorAll("#menu .cell, #faces .face").forEach((b) => { b.disabled = true; });
       $("turnMsg").textContent = game.over ? "" : "waiting on the table";
     }
-    if (p !== "window") off(["calzaYes", "calzaChallenge", "calzaNo"], "only in the pause after a rival's bid");
+    if (p !== "window") off(["calzaYes", "calzaNo"], "only in the pause after a rival's bid");
     if (p !== "duel") off(["duelStand", "duelEscalate", "duelFold"], "only in a duel you are in");
   }
   function showTurn() {
@@ -483,19 +485,18 @@
     snapQty();
     renderStepper();
     $("challenge").disabled = !v.standing; $("challenge").title = v.standing ? "cups up on the standing bid" : "no standing bid to call";
-    // The sweep on offer: a run of recent bidders behind the standing bid.
+    // The sweep is Challenge's scope: "just the bid" (the default every turn) or
+    // a run of recent bidders behind it, at a depth you pick before you press.
     const run = v.sweep || [];
-    $("sweep").disabled = run.length < 2; $("sweepDepth").disabled = run.length < 2;
-    $("sweep").title = run.length < 2 ? "no run of two or more bidders to sweep" : "challenge the run at once";
+    game.run = run;
+    const sel = $("sweepDepth"); sel.innerHTML = "";
+    const one = document.createElement("option"); one.value = "1"; one.textContent = "just the bid"; sel.appendChild(one);
+    for (let d = 2; d <= run.length; d++) { const o = document.createElement("option"); o.value = d; o.textContent = d + " bidders"; sel.appendChild(o); }
+    sel.value = "1";
+    sel.disabled = run.length < 2; sel.title = run.length < 2 ? "no run of two or more bidders to sweep" : "how many recent bidders Challenge takes on";
+    const who = () => { const d = parseInt(sel.value, 10); return d >= 2 ? run.slice(0, d).map((t) => seatName(t.seat) + " (" + bidText(t.bid) + ")").join(", ") : ""; };
     $("sweepWho").textContent = "";
-    if (run.length >= 2) {
-      const sel = $("sweepDepth"); sel.innerHTML = "";
-      for (let d = 2; d <= run.length; d++) { const o = document.createElement("option"); o.value = d; o.textContent = d; sel.appendChild(o); }
-      sel.value = "2";
-      const who = () => run.slice(0, parseInt(sel.value, 10)).map((t) => seatName(t.seat) + " (" + bidText(t.bid) + ")").join(", ");
-      $("sweepWho").textContent = who();
-      sel.onchange = () => { $("sweepWho").textContent = who(); };
-    }
+    sel.onchange = () => { $("sweepWho").textContent = who(); };
     $("turnMsg").textContent = v.standing ? "" : openLine(v.menu);
     $("turn").scrollIntoView({ block: "nearest" });
   }
@@ -611,7 +612,7 @@
     $("turn").hidden = false;
     $("sweepWrap").hidden = !game.rules.chain;
     $("calza").hidden = !(game.rules.calza || game.rules.oot);
-    $("calzaYes").hidden = !game.rules.calza; $("calzaChallenge").hidden = !game.rules.oot;
+    $("calzaYes").hidden = !game.rules.calza;
     $("duel").hidden = !game.rules.ck;
     setPhase("idle");
     $("tableTitle").textContent = (dudo ? "The ship" : "The bar") + (iou ? " - IOU" : "");
@@ -654,10 +655,12 @@
     $("qtyUp").addEventListener("click", () => { game.pick.qty++; renderStepper(); });
     $("modeBtn").addEventListener("click", () => { game.pick.mode = game.pick.mode === 1 ? 0 : 1; snapQty(); renderStepper(); });
     $("qtyDown").addEventListener("click", () => { if (game.pick.qty > 1) game.pick.qty--; renderStepper(); });
-    $("challenge").addEventListener("click", () => answer(-1));
-    $("sweep").addEventListener("click", () => answer(-(parseInt($("sweepDepth").value, 10) + 1)));
+    $("challenge").addEventListener("click", () => {
+      if (game.phase === "window") return answerCalza(2);          // out of turn
+      const d = game.rules.chain ? parseInt($("sweepDepth").value, 10) : 1;
+      answer(d >= 2 ? -(d + 1) : -1);                              // a sweep at depth d, or the bid alone
+    });
     $("calzaYes").addEventListener("click", () => answerCalza(1));
-    $("calzaChallenge").addEventListener("click", () => answerCalza(2));
     $("calzaNo").addEventListener("click", () => answerCalza(0));
     $("duelStand").addEventListener("click", () => answerDuel(0));
     $("duelEscalate").addEventListener("click", () => answerDuel(1));

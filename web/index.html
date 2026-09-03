@@ -67,18 +67,16 @@
       <div class="row">
         <button id="challenge" class="danger big">Challenge</button>
         <span id="sweepWrap" class="sweep" hidden>
-          <button id="sweep" class="danger big">Sweep</button>
-          <label class="hint">depth <select id="sweepDepth"></select></label>
+          <label class="hint">sweep <select id="sweepDepth"><option value="1">just the bid</option></select></label>
           <span id="sweepWho" class="hint"></span>
         </span>
         <span id="turnMsg" class="hint"></span>
       </div>
     </div>
     <div id="calza" class="duel" hidden>
-      <div id="calzaMsg" class="verdict">The pause after a rival's bid: call the count exact, or challenge it out of turn.</div>
+      <div id="calzaMsg" class="verdict">The pause after a rival's bid: call the count exact, or Challenge it out of turn.</div>
       <div class="row">
         <button id="calzaYes" class="danger big">Exact!</button>
-        <button id="calzaChallenge" class="danger big">Challenge now</button>
         <button id="calzaNo" class="big">Pass</button>
         <span id="calzaHint" class="hint"></span>
       </div>
