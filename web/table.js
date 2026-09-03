@@ -7,13 +7,18 @@
 // for a click, and your turn panel opens only once the queue has drained. The
 // engine is blocked in the decider meanwhile (Asyncify), so nothing is lost.
 // `?fast=1` drops every delay and auto-continues reveals (the drive.js gate).
+// Otherwise the pace select scales every beat (remembered in this browser).
 (function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
-  const STORE = { est: "ld.estimate", record: "ld.record", markers: "ld.markers" };
+  const STORE = { est: "ld.estimate", record: "ld.record", markers: "ld.markers", pace: "ld.pace" };
   const FAST = /[?&]fast=1/.test(location.search);
-  const BEAT = FAST ? 0 : 550;          // ms per AI action
-  const HAND_BEAT = FAST ? 0 : 900;     // ms on a new deal
+  const PACE = { slow: 1.6, normal: 1, quick: 0.5 };
+  let pace = 1;
+  const beat = (ms) => (FAST ? 0 : Math.round(ms * pace));
+  const BEAT = 1000;         // ms per bid
+  const TENSE_BEAT = 1500;   // a challenge, a duel rung, a fold, a knockout
+  const HAND_BEAT = 1700;    // a new deal
 
   let M = null;        // the wasm module
   let info = null;     // table_info()
@@ -150,14 +155,15 @@
   // Apply one event to the state and the screen. Returns the delay before the next.
   function apply(ev) {
     if (ev.dice) game.dice = ev.dice.slice();
-    let wait = BEAT;
+    let wait = beat(BEAT);
+    const stakeText = (n) => (n > 1 ? " at " + n + "x" : "");
     switch (ev.kind) {
       case "HandStart":
-        game.hand = ev.hand; game.standing = null; game.bidder = -1; game.turn = ev.seat;
+        game.hand = ev.hand; game.standing = null; game.bidder = -1; game.turn = ev.seat; game.stake = 1;
         game.last = game.last.map((_, s) => (game.alive[s] ? "" : "out"));
         $("reveal").hidden = true;
         log("H" + (ev.hand + 1) + " deal, " + seatName(ev.seat) + " opens" + (game.dudo ? "  dice " + ev.dice.join("/") : "  drinks " + ev.dice.join("/")));
-        wait = HAND_BEAT;
+        wait = beat(HAND_BEAT);
         break;
       case "Bid":
         game.standing = ev.bid; game.bidder = ev.seat; game.turn = ev.other;   // the engine names who acts next
@@ -168,6 +174,25 @@
         game.turn = -1;
         game.last[ev.seat] = "<span class='act'>challenges " + seatName(ev.other) + "</span>";
         log("  " + seatName(ev.seat) + " challenges " + seatName(ev.other));
+        wait = beat(TENSE_BEAT);
+        break;
+      case "Counter":     // the bidder doubles the stake on its own bid
+        game.stake = ev.count; game.turn = ev.other;
+        game.last[ev.seat] = "<span class='act'>counters - " + ev.count + "x</span>";
+        log("  " + seatName(ev.seat) + " counters: the stake is " + ev.count + "x");
+        wait = beat(TENSE_BEAT);
+        break;
+      case "Escalate":    // the challenger doubles it back
+        game.stake = ev.count; game.turn = ev.other;
+        game.last[ev.seat] = "<span class='act'>escalates - " + ev.count + "x</span>";
+        log("  " + seatName(ev.seat) + " escalates: the stake is " + ev.count + "x");
+        wait = beat(TENSE_BEAT);
+        break;
+      case "Stand":       // the stake stands; the cups come up
+        game.stake = ev.count; game.turn = -1;
+        game.last[ev.seat] = "stands" + stakeText(ev.count);
+        log("  " + seatName(ev.seat) + " stands" + stakeText(ev.count) + " - cups up");
+        wait = beat(TENSE_BEAT);
         break;
       case "Calza":
         game.turn = -1; game.calza = ev.count > 0;
@@ -181,24 +206,30 @@
         const verdict = exact
           ? (game.calza ? seatName(ev.seat) + " called it exactly right." : seatName(ev.seat) + " called exact and missed.")
           : seatName(ev.seat) + " loses the hand.";
-        box.innerHTML = "<div class='verdict'>" + bidHtml(ev.bid) + " · <b>" + ev.count + "</b> on the table. " + verdict + "</div><div class='cups'>" + cups + "</div>" +
+        box.innerHTML = "<div class='verdict'>" + bidHtml(ev.bid) + stakeText(game.stake) + " · <b>" + ev.count + "</b> on the table. " + verdict + "</div><div class='cups'>" + cups + "</div>" +
                         (FAST ? "" : "<button id='continue' class='primary'>Continue</button>");
         delete game.calza;
-        log("  reveal: " + ev.count + " × " + ev.bid.face + " on the table; " + seatName(ev.seat) + (exact ? " called exact" : " loses"));
+        log("  reveal" + stakeText(game.stake) + ": " + ev.count + " × " + ev.bid.face + " on the table; " + seatName(ev.seat) + (exact ? " called exact" : " loses"));
         if (!FAST) { wait = -1; $("continue").addEventListener("click", () => { $("continue").disabled = true; const c = onContinue; onContinue = null; if (c) c(); }); }
         break;
       }
       case "Surrender":
-        game.last[ev.seat] = "<span class='act'>folds</span>";
-        log("  " + seatName(ev.seat) + " folds the challenge (no reveal)");
+        game.turn = -1;
+        game.last[ev.seat] = "<span class='act'>folds" + stakeText(ev.count) + "</span>";
+        log("  " + seatName(ev.seat) + " folds the challenge" + stakeText(ev.count) + " (no reveal, reduced penalty)");
+        wait = beat(TENSE_BEAT);
         break;
-      case "Penalty":
-        game.last[ev.seat] = "pays " + ev.count + (game.dudo ? (Math.abs(ev.count) === 1 ? " die" : " dice") : (Math.abs(ev.count) === 1 ? " drink" : " drinks"));
-        log("  " + seatName(ev.seat) + " pays " + ev.count + (game.dudo ? " die" : " drink") + (Math.abs(ev.count) === 1 ? "" : "s"));
+      case "Penalty": {
+        const unit = game.dudo ? (Math.abs(ev.count) === 1 ? " die" : " dice") : (Math.abs(ev.count) === 1 ? " drink" : " drinks");
+        const why = game.stake > 1 && ev.count > 1 ? " (" + game.stake + "x stake)" : "";
+        game.last[ev.seat] = "pays " + ev.count + unit + why;
+        log("  " + seatName(ev.seat) + " pays " + ev.count + unit + why);
         break;
+      }
       case "KnockOut":
         game.alive[ev.seat] = false; game.last[ev.seat] = "<span class='act'>out</span>";
         log("  " + seatName(ev.seat) + " is out" + (ev.other >= 0 ? " (" + seatName(ev.other) + ")" : ""));
+        wait = beat(TENSE_BEAT);
         break;
       case "Ledger":
         if (game.markers[ev.seat] >= 0) game.markers[ev.seat] = Math.max(0, game.markers[ev.seat] + ev.count);
@@ -341,7 +372,7 @@
     queue = []; draining = false; onContinue = null; view = null; pending = null;
     game = { n, names, dudo, iou, dice: new Array(n).fill(dudo ? 5 : 0), alive: new Array(n).fill(true), last: new Array(n).fill(""),
              tol: [info.player.tolerance].concat(seatsRows.map((r) => r.tolerance)), markers,
-             standing: null, bidder: -1, turn: -1, hand: 0, over: false, view: null, pick: null,
+             standing: null, bidder: -1, turn: -1, hand: 0, over: false, view: null, pick: null, stake: 1,
              log: ["# Liar's Dice " + (dudo ? "ship" : "bar") + " table, seed " + seed + ", build " + $("build").textContent,
                    "# cfg " + cfg, "# seats " + names.join(", ")] };
     $("setup").hidden = true; $("table").hidden = false; $("matchEnd").hidden = true; $("reveal").hidden = true; $("again").hidden = true;
@@ -388,6 +419,9 @@
     $("literal").addEventListener("change", () => { game.pick.mode = $("literal").checked ? 1 : 0; renderStepper(); });
     $("challenge").addEventListener("click", () => answer(-1));
     $("copyLog").addEventListener("click", copyLog);
+    const savedPace = load(STORE.pace, "normal");
+    if (PACE[savedPace]) { $("pace").value = savedPace; pace = PACE[savedPace]; }
+    $("pace").addEventListener("change", () => { pace = PACE[$("pace").value] || 1; save(STORE.pace, $("pace").value); });
     $("again").addEventListener("click", () => { $("table").hidden = true; $("setup").hidden = false; renderRivals(); });
     $("forget").addEventListener("click", (e) => { e.preventDefault(); localStorage.removeItem(STORE.est); localStorage.removeItem(STORE.record); localStorage.removeItem(STORE.record + ".streak"); renderRead(); renderRecord(); });
     $("resetMarkers").addEventListener("click", (e) => { e.preventDefault(); localStorage.removeItem(STORE.markers); });

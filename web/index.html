@@ -44,7 +44,7 @@
   </section>
 
   <section id="table" class="panel" hidden>
-    <h2 id="tableTitle">The table</h2>
+    <h2 id="tableTitle">The table <label class="pace hint">pace <select id="pace"><option value="slow">slow</option><option value="normal" selected>normal</option><option value="quick">quick</option></select></label></h2>
     <div id="seatsView" class="seats"></div>
     <div id="standing" class="standing"></div>
     <div id="turn" class="turn" hidden>
@@ -71,7 +71,7 @@
       <pre id="log" class="log"></pre>
       <button id="copyLog">Copy match log</button> <span id="copyMsg" class="hint"></span>
     </details>
-    <p class="hint">This is the host-sim table: the same match loop every difficulty number was measured on, with you at seat 0. The AI still takes these decisions for you in this cut: surrender or counter-kill in a duel, calza, chain-kill sweeps, out-of-turn challenges.</p>
+    <p class="hint">This is the host-sim table: the same match loop every difficulty number was measured on, with you at seat 0. The AI still takes these decisions for you in this cut: surrender or counter-kill in a duel, calza, chain-kill sweeps, out-of-turn challenges. When a bid is challenged the two of them can double the stake back and forth (counter, escalate) before the cups come up; the loser pays the stake that stood.</p>
   </section>
 
   <section id="reporting" class="panel">

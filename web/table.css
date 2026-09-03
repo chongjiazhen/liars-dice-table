@@ -5,6 +5,7 @@ body { margin: 0; font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-ser
 #app { max-width: 720px; margin: 0 auto; padding: 16px; }
 h1 { margin: 0; font-size: 1.8rem; }
 h2 { margin: 0 0 8px; font-size: 1.15rem; }
+h2 .pace { float: right; font-weight: normal; }
 .sub { margin: 4px 0 8px; color: var(--muted); }
 .readline { margin: 0 0 12px; color: var(--felt); font-weight: 600; }
 .panel { border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin: 12px 0; }
