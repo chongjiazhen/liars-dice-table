@@ -213,7 +213,12 @@
     for (let s = 0; s < game.n; s++) {
       const d = document.createElement("div");
       d.className = "seat" + (s === 0 ? " you" : "") + (s === game.turn ? " turn" : "") + (game.alive[s] ? "" : " out");
-      const stat = game.dudo ? (game.dice[s] + (game.dice[s] === 1 ? " die" : " dice")) : (game.dice[s] + " / " + game.tol[s] + " drinks");
+      // The bar shows the count and the danger flag, never the cap (design
+      // 2026-07-21 "hidden C, visible count"): the flag lights on the first of
+      // the six drinks up to the cap, one of which is the secret last one.
+      const danger = !game.dudo && game.alive[s] && game.dice[s] >= game.tol[s] - 5;
+      const stat = game.dudo ? (game.dice[s] + (game.dice[s] === 1 ? " die" : " dice"))
+                 : (game.dice[s] + (game.dice[s] === 1 ? " drink" : " drinks") + (danger ? " <span class='danger' title='in the last six drinks: one of them, drawn at the deal and kept secret, is the last'>in danger</span>" : ""));
       const mk = game.iou && game.markers[s] >= 0 ? " · " + game.markers[s] + " markers" : "";
       d.innerHTML = "<div class='name'>" + seatName(s) + "</div><div class='stat'>" + stat + mk + "</div><div class='last'>" + (game.last[s] || "&nbsp;") + "</div>";
       box.appendChild(d);
@@ -300,7 +305,7 @@
       }
       case "KnockOut":
         game.alive[ev.seat] = false; game.last[ev.seat] = "<span class='act'>out</span>";
-        log("  " + seatName(ev.seat) + " is out" + (ev.other >= 0 ? " (" + seatName(ev.other) + ")" : ""));
+        log("  " + seatName(ev.seat) + (game.dudo ? (ev.seat === 0 ? " are out of dice" : " is out of dice") : (ev.seat === 0 ? " pass out on drink " : " passes out on drink ") + game.dice[ev.seat]) + (ev.other >= 0 ? " (to " + seatName(ev.other) + ")" : ""));
         wait = beat(TENSE_BEAT);
         break;
       case "Ledger":
