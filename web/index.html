@@ -62,6 +62,15 @@
         <span id="turnMsg" class="hint"></span>
       </div>
     </div>
+    <div id="duel" class="duel" hidden>
+      <div id="duelMsg" class="verdict"></div>
+      <div class="row">
+        <button id="duelStand" class="primary big">Stand</button>
+        <button id="duelEscalate" class="danger big">Escalate</button>
+        <button id="duelFold" class="big">Fold</button>
+        <span id="duelHint" class="hint"></span>
+      </div>
+    </div>
     <div id="reveal" class="reveal" hidden></div>
     <div id="matchEnd" class="matchend" hidden></div>
     <button id="again" hidden>Sit down again</button>
@@ -70,7 +79,7 @@
       <pre id="log" class="log"></pre>
       <button id="copyLog">Copy match log</button> <span id="copyMsg" class="hint"></span>
     </details>
-    <p class="hint">This is the host-sim table: the same match loop every difficulty number was measured on, with you at seat 0. The AI still takes these decisions for you in this cut: surrender or counter-kill in a duel, calza, chain-kill sweeps, out-of-turn challenges. When a bid is challenged the two of them can double the stake back and forth (counter, escalate) before the cups come up; the loser pays the stake that stood. Ones are wild under any other face (飞 in the bar); a bid of ones makes them count as ones (斋 in the bar, aces on the ship, where they cannot open).</p>
+    <p class="hint">This is the host-sim table: the same match loop every difficulty number was measured on, with you at seat 0. When a bid is challenged the two of them can double the stake back and forth (counter, escalate) before the cups come up; the loser pays the stake that stood. Those rungs are yours when you are in the duel: stand, escalate, or (as the challenger) fold for the reduced penalty. The AI still takes these for you in this cut: calza, chain-kill sweeps, out-of-turn challenges. Ones are wild under any other face (飞 in the bar); a bid of ones makes them count as ones (斋 in the bar, aces on the ship, where they cannot open).</p>
   </section>
 
   <section id="reporting" class="panel">

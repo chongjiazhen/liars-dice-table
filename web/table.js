@@ -25,6 +25,7 @@
   let game = null;     // the live match's state
   let pending = null;  // the resolve of the decision the page owes the engine
   let view = null;     // the decision view waiting to be shown
+  let duelView = null; // a duel rung waiting to be shown
   let queue = [];      // events not yet rendered
   let draining = false;
   let onContinue = null;   // a reveal waiting for its click
@@ -264,7 +265,7 @@
   function onEvent(ev) { queue.push(ev); drain(); }
   function drain() {
     if (draining) return;
-    if (!queue.length) { showTurn(); return; }
+    if (!queue.length) { showDuel(); showTurn(); return; }
     draining = true;
     const wait = apply(queue.shift());
     const next = () => { draining = false; drain(); };
@@ -277,6 +278,40 @@
   function decide(v) {
     view = v;
     return new Promise((resolve) => { pending = resolve; drain(); });
+  }
+  // ---- your rung of a duel ------------------------------------------------------
+  function duel(v) {
+    duelView = v;
+    return new Promise((resolve) => { pending = resolve; drain(); });
+  }
+  function showDuel() {
+    if (!duelView || !pending) return;
+    const v = duelView; duelView = null;
+    game.turn = 0; game.stake = v.stake;
+    renderSeats();
+    const unit = game.dudo ? "dice" : "drinks";
+    const who = seatName(v.opponent);
+    const lead = v.isBidder
+      ? (v.stake === 1 ? who + " called your " + bidText(v.standing) + "." : who + " escalated to " + v.stake + "x.")
+      : who + " countered your call: the stake is " + v.stake + "x.";
+    $("duelMsg").innerHTML = lead + " Your cup: <span class='cup'>" + cupHtml(v.hand) + "</span>";
+    $("duelStand").textContent = "Stand at " + v.stake + "x";
+    $("duelStand").title = "cups up now; the loser pays " + v.stake + " " + unit;
+    $("duelEscalate").hidden = !v.canEscalate;
+    $("duelEscalate").textContent = "Escalate to " + v.nextStake + "x";
+    $("duelEscalate").title = who + " answers; a reveal then costs the loser " + v.nextStake + " " + unit;
+    $("duelFold").hidden = !v.canFold;
+    $("duelFold").textContent = "Fold, pay " + v.foldPenalty;
+    $("duelFold").title = "no reveal; you pay " + v.foldPenalty + " " + (v.foldPenalty === 1 ? unit.slice(0, -1) : unit);
+    $("duelHint").textContent = v.isBidder ? "Your bid stands either way; you cannot fold it." : "";
+    $("duel").hidden = false;
+    $("duel").scrollIntoView({ block: "nearest" });
+  }
+  function answerDuel(a) {
+    if (!pending) return;
+    const r = pending; pending = null;
+    $("duel").hidden = true; game.turn = -1;
+    r(a);
   }
   function showTurn() {
     if (!view || !pending) return;
@@ -319,7 +354,14 @@
     const faces = $("faces"); faces.innerHTML = "";
     for (let f = 1; f <= 6; f++) {
       const b = document.createElement("button"); b.className = "face" + (f === p.face ? " on" : ""); b.dataset.face = f; b.innerHTML = die(f);
-      b.addEventListener("click", () => { game.pick.face = f; renderStepper(); });
+      b.addEventListener("click", () => {
+        // A face click lands on a bid you can press: the quantity snaps up to
+        // that face's cheapest legal raise when what is typed is below it.
+        game.pick.face = f;
+        const legal = game.view.menu.filter((m) => m.face === f).map((m) => m.qty);
+        if (legal.length && game.pick.qty < Math.min.apply(null, legal)) game.pick.qty = Math.min.apply(null, legal);
+        renderStepper();
+      });
       faces.appendChild(b);
     }
     const ok = legalIndex(p) >= 0;
@@ -385,13 +427,13 @@
       const coll = names.map((h) => (h === "Sol" || h === "Lark") ? 1 : 0);
       cfg += ";iou=1;years=" + markers.join(",") + ";coll=" + coll.join(",");
     }
-    queue = []; draining = false; onContinue = null; view = null; pending = null;
+    queue = []; draining = false; onContinue = null; view = null; duelView = null; pending = null;
     game = { n, names, dudo, iou, dice: new Array(n).fill(dudo ? 5 : 0), alive: new Array(n).fill(true), last: new Array(n).fill(""),
              tol: [info.player.tolerance].concat(seatsRows.map((r) => r.tolerance)), markers,
              standing: null, bidder: -1, turn: -1, hand: 0, over: false, view: null, pick: null, stake: 1,
              log: ["# Liar's Dice " + (dudo ? "ship" : "bar") + " table, seed " + seed + ", build " + $("build").textContent,
                    "# cfg " + cfg, "# seats " + names.join(", ")] };
-    $("setup").hidden = true; $("table").hidden = false; $("matchEnd").hidden = true; $("reveal").hidden = true; $("again").hidden = true;
+    $("setup").hidden = true; $("table").hidden = false; $("matchEnd").hidden = true; $("reveal").hidden = true; $("duel").hidden = true; $("again").hidden = true;
     $("tableTitle").textContent = (dudo ? "The ship" : "The bar") + (iou ? " - IOU" : "");
     $("log").textContent = game.log.join("\n");
     renderSeats();
@@ -415,7 +457,7 @@
   }
 
   // ---- boot -------------------------------------------------------------------------
-  window.table = { decide, event: onEvent };
+  window.table = { decide, duel, event: onEvent };
   fetch("dist/BUILD").then((r) => r.text()).then((t) => { $("build").textContent = t.trim(); }).catch(() => {});
   createTable().then((mod) => {
     M = mod;
@@ -433,6 +475,9 @@
     $("qtyUp").addEventListener("click", () => { game.pick.qty++; renderStepper(); });
     $("qtyDown").addEventListener("click", () => { if (game.pick.qty > 1) game.pick.qty--; renderStepper(); });
     $("challenge").addEventListener("click", () => answer(-1));
+    $("duelStand").addEventListener("click", () => answerDuel(0));
+    $("duelEscalate").addEventListener("click", () => answerDuel(1));
+    $("duelFold").addEventListener("click", () => answerDuel(2));
     $("copyLog").addEventListener("click", copyLog);
     const savedPace = load(STORE.pace, "normal");
     if (PACE[savedPace]) { $("pace").value = savedPace; pace = PACE[savedPace]; }
