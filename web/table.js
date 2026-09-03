@@ -79,40 +79,68 @@
   // ---- setup --------------------------------------------------------------------
   function format() { return document.querySelector("input[name=format]:checked").value; }
   function rosterRows() {
-    // host cast first, the other cast after
+    // One fixed order, bar cast then ship cast, whatever the format: the list
+    // is a roster, not a suggestion. The format only picks the opening seats.
     const bar = info.bar.map((r, i) => Object.assign({ rid: 1, idx: i }, r));
     const ship = info.ship.map((r, i) => Object.assign({ rid: 0, idx: i }, r));
-    return format() === "dudo" ? ship.concat(bar) : bar.concat(ship);
+    return bar.concat(ship);
   }
+  const MAX_RIVALS = 5;
+  let seatOrder = [];   // rival keys "rid:idx" in turn order after you (seat 1, 2, ...)
+  const keyOf = (r) => r.rid + ":" + r.idx;
+  function isIou() { return $("iou").checked && format() === "dudo"; }
+  // A fresh seating: the format's own cast, three of them (the measured
+  // four-seat table). IOU mode seats the crew and the house first, always.
   function renderRivals(fresh) {
     const rows = rosterRows();
-    const want = parseInt($("seats").value, 10) - 1;
-    const iou = $("iou").checked && format() === "dudo";
-    const prior = new Set(fresh ? [] : Array.from(document.querySelectorAll("#rivals input:checked")).map((i) => i.value));
+    const home = format() === "dudo" ? 0 : 1;
+    if (fresh) seatOrder = rows.filter((r) => r.rid === home).slice(0, 3).map(keyOf);
+    if (isIou()) {
+      const crew = rows.filter((r) => r.rid === 0).map(keyOf);
+      seatOrder = crew.concat(seatOrder.filter((k) => crew.indexOf(k) < 0)).slice(0, MAX_RIVALS);
+    }
     const box = $("rivals"); box.innerHTML = "";
-    let picked = 0;
-    rows.forEach((r, k) => {
-      const key = r.rid + ":" + r.idx;
-      const forced = iou && r.rid === 0;                       // the crew and the house sit in IOU mode
-      let on = forced || (prior.size ? prior.has(key) : k < want);
-      if (!forced && on && picked >= want) on = false;
-      if (on) picked++;
+    rows.forEach((r) => {
+      const key = keyOf(r);
+      const forced = isIou() && r.rid === 0;
       const l = document.createElement("label");
-      const c = document.createElement("input"); c.type = "checkbox"; c.value = key; c.checked = on; c.disabled = forced;
-      c.addEventListener("change", enforceCount);
+      const c = document.createElement("input"); c.type = "checkbox"; c.value = key; c.checked = seatOrder.indexOf(key) >= 0; c.disabled = forced;
+      c.addEventListener("change", () => {
+        if (c.checked) { if (seatOrder.indexOf(key) < 0) seatOrder.push(key); }   // a new pick takes the last chair
+        else seatOrder = seatOrder.filter((k) => k !== key);
+        renderSeating();
+      });
       l.appendChild(c); l.appendChild(document.createTextNode(" " + r.name));
       box.appendChild(l);   // no home-table tag: the log's cfg line carries the roster id for the reader who needs it
-
     });
-    enforceCount();
+    renderSeating();
   }
-  function enforceCount() {
-    const want = parseInt($("seats").value, 10) - 1;
-    const boxes = Array.from(document.querySelectorAll("#rivals input"));
-    const on = boxes.filter((b) => b.checked).length;
-    boxes.forEach((b) => { if (!b.checked) b.disabled = on >= want; });
-    $("play").disabled = on !== want;
-    $("play").textContent = on === want ? "Deal" : "Pick " + (want - on) + " more";
+  // The chairs in turn order, you first; each rival's chair moves left or
+  // right or empties. The checkboxes above mirror it.
+  function renderSeating() {
+    const rows = rosterRows();
+    const full = seatOrder.length >= MAX_RIVALS;
+    const isCrew = (k) => isIou() && k.startsWith("0:");
+    document.querySelectorAll("#rivals input").forEach((b) => { b.disabled = isCrew(b.value) || (!b.checked && full); });
+    const box = $("seating"); box.innerHTML = "";
+    const you = document.createElement("span"); you.className = "chair you"; you.textContent = "You"; box.appendChild(you);
+    const mk = (t, title, on) => { const b = document.createElement("button"); b.type = "button"; b.textContent = t; b.title = title; b.addEventListener("click", on); return b; };
+    seatOrder.forEach((key, i) => {
+      const r = rows.find((x) => keyOf(x) === key);
+      const arrow = document.createElement("span"); arrow.className = "arrow"; arrow.textContent = "\u2192"; box.appendChild(arrow);
+      const ch = document.createElement("span"); ch.className = "chair";
+      ch.appendChild(document.createTextNode(r.name + " "));
+      const swap = (j) => { const k = seatOrder[i]; seatOrder[i] = seatOrder[j]; seatOrder[j] = k; renderSeating(); };
+      // In IOU mode the crew keeps the first chairs (the engine sorts them there anyway).
+      const left = mk("\u25c0", "earlier in the turn order", () => swap(i - 1)); left.disabled = i === 0 || (isCrew(key) !== isCrew(seatOrder[i - 1]));
+      const right = mk("\u25b6", "later in the turn order", () => swap(i + 1)); right.disabled = i === seatOrder.length - 1 || (isCrew(key) !== isCrew(seatOrder[i + 1]));
+      ch.appendChild(left); ch.appendChild(right);
+      if (!isCrew(key)) ch.appendChild(mk("\u00d7", "stand up", () => { seatOrder = seatOrder.filter((k) => k !== key); document.querySelector("#rivals input[value='" + key + "']").checked = false; renderSeating(); }));
+      box.appendChild(ch);
+    });
+    const n = seatOrder.length;
+    $("play").disabled = n === 0;
+    $("play").textContent = n === 0 ? "Seat a rival" : "Deal (table of " + (n + 1) + ")";
   }
   // What each house rule does, in the page's own words (the device carries the
   // in-character teach cards; this is the plain page 2 of each). Keyed by the
@@ -172,7 +200,6 @@
   function onFormat() {
     if (format() !== "dudo") $("iou").checked = false;
     $("iou").disabled = format() !== "dudo";
-    if ($("iou").checked && parseInt($("seats").value, 10) < 4) $("seats").value = "4";
     renderRivals(true); renderRules();   // a new format seats its own cast first
   }
 
@@ -493,9 +520,8 @@
   async function play() {
     const dudo = format() === "dudo";
     const iou = dudo && $("iou").checked;
-    const picks = Array.from(document.querySelectorAll("#rivals input:checked")).map((c) => c.value);
     const rows = rosterRows();
-    const seatsRows = picks.map((k) => rows.find((r) => r.rid + ":" + r.idx === k));
+    const seatsRows = seatOrder.map((k) => rows.find((r) => keyOf(r) === k));   // the chairs, in turn order
     if (iou) seatsRows.sort((a, b) => (a.rid - b.rid) || (a.idx - b.idx));   // Sol, Lark, Cove first, guests after
     const names = ["You"].concat(seatsRows.map((r) => r.name));
     const n = names.length;
@@ -552,8 +578,7 @@
     info = JSON.parse(M.ccall("table_info", "string"));
     renderRead(); renderRecord(); onFormat();
     document.querySelectorAll("input[name=format]").forEach((r) => r.addEventListener("change", onFormat));
-    $("seats").addEventListener("change", () => { if ($("iou").checked && parseInt($("seats").value, 10) < 4) $("seats").value = "4"; renderRivals(); });
-    $("iou").addEventListener("change", onFormat);
+    $("iou").addEventListener("change", () => renderRivals(false));
     $("skillRoster").addEventListener("change", () => { $("skill").disabled = $("skillRoster").checked; });
     $("skill").addEventListener("input", () => { $("skillv").textContent = parseFloat($("skill").value).toFixed(2); });
     $("play").addEventListener("click", play);

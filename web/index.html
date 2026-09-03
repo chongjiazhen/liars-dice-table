@@ -20,12 +20,16 @@
     <div class="row">
       <label><input type="radio" name="format" value="bar" checked> Bar <span class="hint">(five dice, drinks)</span></label>
       <label><input type="radio" name="format" value="dudo"> Ship <span class="hint">(dice shrink)</span></label>
-      <label class="gap">Seats <select id="seats"><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select></label>
       <label class="gap"><input type="checkbox" id="iou"> IOU mode <span class="hint">(ship only: Cove is the house, you and the crew hold markers)</span></label>
     </div>
     <div class="row">
       <span>Rivals</span>
       <div id="rivals" class="picks"></div>
+    </div>
+    <div class="row">
+      <span>Seating</span>
+      <div id="seating" class="seating"></div>
+      <span class="hint">turn order from you; up to five rivals</span>
     </div>
     <div class="row">
       <label><input type="checkbox" id="skillRoster" checked> each rival's own skill</label>
