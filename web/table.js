@@ -429,16 +429,29 @@
     renderSeats();
     $("cup").innerHTML = cupHtml(v.hand);
     $("unknown").textContent = v.unknown + " dice you can't see";
-    // Suggested raises: the cheapest legal raise on each face (and each mode),
-    // lowest first - one row of buttons, the stepper covers the rest.
+    // The floor, as a fixed grid: one column per face, a 飞 row and a 斋 row in
+    // the bar (one row on the ship), each cell that face's cheapest legal raise
+    // in that mode, greyed when there is none. Nothing moves between turns; the
+    // stepper covers any other quantity.
     const menu = $("menu"); menu.innerHTML = "";
     const cheapest = new Map();
     v.menu.forEach((b) => { const k = b.face + ":" + b.mode; if (!cheapest.has(k)) cheapest.set(k, b); });
-    const picks = Array.from(cheapest.values()).sort((a, b) => a.qty - b.qty || a.face - b.face).slice(0, 8);
-    picks.forEach((b) => {
-      const btn = document.createElement("button"); btn.innerHTML = bidHtml(b);
-      btn.addEventListener("click", () => answer(v.menu.indexOf(b)));
-      menu.appendChild(btn);
+    (game.dudo ? [0] : [0, 1]).forEach((mode) => {
+      const row = document.createElement("div"); row.className = "mrow";
+      const tag = document.createElement("span"); tag.className = "mtag lit";
+      tag.textContent = game.dudo ? "" : (mode === 1 ? "斋" : "飞");
+      tag.title = game.dudo ? "" : (mode === 1 ? "zhai: ones count as ones" : "fei: ones are wild");
+      row.appendChild(tag);
+      for (let f = 1; f <= 6; f++) {
+        // Ones are always 斋: their cell sits in the 斋 row (the ship's single row holds the aces).
+        const m = f === 1 ? 1 : mode;
+        const b = (f === 1 && !game.dudo && mode === 0) ? null : cheapest.get(f + ":" + m);
+        const btn = document.createElement("button"); btn.className = "cell";
+        if (b) { btn.innerHTML = "<b>" + b.qty + "</b> × " + die(b.face); btn.addEventListener("click", () => answer(v.menu.indexOf(b))); }
+        else { btn.innerHTML = "<b>–</b> × " + die(f); btn.disabled = true; }
+        row.appendChild(btn);
+      }
+      menu.appendChild(row);
     });
     // The stepper: any legal raise.
     // The stepper opens where the device seats its builder: on a raise, the

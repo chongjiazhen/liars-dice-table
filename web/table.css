@@ -38,9 +38,12 @@ input[type=text], input[type=number], select { font: inherit; padding: 3px 6px; 
 .cup .die { width: 2.2em; height: 2.2em; margin-right: 4px; vertical-align: middle; }
 .cuprow { align-items: center; }
 .lit { font-size: 0.75rem; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 0 4px; vertical-align: middle; }
-.menu { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
-.menu button { padding: 6px 10px; }
-.menu button b { font-size: 1.1rem; }
+.menu { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; overflow-x: auto; }
+.menu .mrow { display: flex; gap: 6px; align-items: center; }
+.menu .mtag { min-width: 1.6em; text-align: center; }
+.menu .cell { padding: 6px 8px; min-width: 4.6em; white-space: nowrap; }
+.menu .cell:disabled { opacity: 0.35; }
+.menu .cell b { font-size: 1.1rem; }
 .stepper { gap: 6px 10px; }
 .stepper .qty { display: inline-flex; align-items: center; }
 .stepper .qty input { width: 3.2em; text-align: center; margin: 0 2px; }
