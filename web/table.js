@@ -30,16 +30,26 @@
   let onContinue = null;   // a reveal waiting for its click
 
   // ---- dice ---------------------------------------------------------------------
-  const PIPS = { 1: [[1, 1]], 2: [[0, 0], [2, 2]], 3: [[0, 0], [1, 1], [2, 2]],
+  // Asian dice: a big red 1, a red 4, pips closer to the centre, and the 2 and
+  // the 3 on opposite diagonals so they read apart at a glance.
+  const PIPS = { 1: [[1, 1]], 2: [[2, 0], [0, 2]], 3: [[0, 0], [1, 1], [2, 2]],
                  4: [[0, 0], [0, 2], [2, 0], [2, 2]], 5: [[0, 0], [0, 2], [1, 1], [2, 0], [2, 2]],
                  6: [[0, 0], [0, 1], [0, 2], [2, 0], [2, 1], [2, 2]] };
   function die(n, cls) {
-    const pips = (PIPS[n] || []).map(([x, y]) => "<circle cx='" + (5 + x * 6) + "' cy='" + (5 + y * 6) + "' r='1.7'/>").join("");
-    return "<svg class='die" + (cls ? " " + cls : "") + (n === 1 ? " one" : "") + "' viewBox='0 0 22 22' aria-label='" + n + "'><rect x='1' y='1' width='20' height='20' rx='4'/>" + pips + "</svg>";
+    const r = n === 1 ? 4.2 : 2.1;
+    const pips = (PIPS[n] || []).map(([x, y]) => "<circle cx='" + (5.5 + x * 5.5) + "' cy='" + (5.5 + y * 5.5) + "' r='" + r + "'/>").join("");
+    return "<svg class='die" + (cls ? " " + cls : "") + (n === 1 ? " one" : n === 4 ? " four" : "") + "' viewBox='0 0 22 22' aria-label='" + n + "'><rect x='1' y='1' width='20' height='20' rx='4'/>" + pips + "</svg>";
   }
   function cupHtml(hand) { return hand.map((d) => die(d)).join(""); }
-  function bidHtml(b) { return "<b>" + b.qty + "</b> × " + die(b.face) + (b.mode === 1 ? " <span class='lit'>1s literal</span>" : ""); }
-  function bidText(b) { return b.qty + " × " + b.face + (b.mode === 1 ? " (ones literal)" : ""); }
+  // Bidding ones makes ones count as ones: 斋 in the bar (any other face is 飞,
+  // ones wild), aces on the ship (where no tag is shown otherwise, as on the
+  // device). The engine fixes the mode from the face, so the tag is derived.
+  function modeTag(b) {
+    if (!game || !game.dudo) return b.face === 1 ? { t: "斋", title: "zhai: ones count as ones" } : { t: "飞", title: "fei: ones are wild" };
+    return b.face === 1 ? { t: "aces", title: "aces count as aces" } : null;
+  }
+  function bidHtml(b) { const m = modeTag(b); return "<b>" + b.qty + "</b> × " + die(b.face) + (m ? " <span class='lit' title='" + m.title + "'>" + m.t + "</span>" : ""); }
+  function bidText(b) { const m = modeTag(b); return b.qty + " × " + b.face + (m ? " " + m.t : ""); }
 
   // ---- storage ---------------------------------------------------------------
   function load(key, dflt) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : dflt; } catch (e) { return dflt; } }
@@ -287,15 +297,22 @@
       menu.appendChild(btn);
     });
     // The stepper: any legal raise.
-    game.pick = v.menu.length ? { qty: v.menu[0].qty, face: v.menu[0].face, mode: v.menu[0].mode } : { qty: 1, face: 2, mode: 0 };
-    $("literalWrap").hidden = !v.menu.some((b) => b.mode === 1);
+    game.pick = v.menu.length ? { qty: v.menu[0].qty, face: v.menu[0].face } : { qty: 1, face: 2 };
     renderStepper();
     $("challenge").disabled = !v.standing;
-    $("turnMsg").textContent = v.standing ? "" : "You open.";
+    $("turnMsg").textContent = v.standing ? "" : openLine(v.menu);
     $("turn").hidden = false;
     $("turn").scrollIntoView({ block: "nearest" });
   }
-  function legalIndex(p) { return game.view.menu.findIndex((b) => b.qty === p.qty && b.face === p.face && b.mode === p.mode); }
+  // The opening floors, read off the legal menu so they can never drift from
+  // the engine: the bar scales them with the table, the ship opens on one.
+  function openLine(menu) {
+    const min = (pred) => menu.filter(pred).reduce((m, b) => Math.min(m, b.qty), Infinity);
+    const any = min((b) => b.face !== 1), ones = min((b) => b.face === 1);
+    if (game.dudo) return "You open: any face but ones, from " + any + ". Ones are wild.";
+    return "You open: " + any + " or more of a face (飞, ones wild), or " + ones + " or more ones (斋, ones count as ones).";
+  }
+  function legalIndex(p) { return game.view.menu.findIndex((b) => b.qty === p.qty && b.face === p.face); }
   function renderStepper() {
     const p = game.pick;
     $("qty").value = p.qty;
@@ -305,7 +322,6 @@
       b.addEventListener("click", () => { game.pick.face = f; renderStepper(); });
       faces.appendChild(b);
     }
-    $("literal").checked = p.mode === 1;
     const ok = legalIndex(p) >= 0;
     $("bidTyped").disabled = !ok;
     $("bidTyped").textContent = ok ? "Bid " + p.qty + " × " + p.face : "Not a legal raise";
@@ -416,7 +432,6 @@
     $("qty").addEventListener("keydown", (e) => { if (e.key === "Enter") answerTyped(); });
     $("qtyUp").addEventListener("click", () => { game.pick.qty++; renderStepper(); });
     $("qtyDown").addEventListener("click", () => { if (game.pick.qty > 1) game.pick.qty--; renderStepper(); });
-    $("literal").addEventListener("change", () => { game.pick.mode = $("literal").checked ? 1 : 0; renderStepper(); });
     $("challenge").addEventListener("click", () => answer(-1));
     $("copyLog").addEventListener("click", copyLog);
     const savedPace = load(STORE.pace, "normal");

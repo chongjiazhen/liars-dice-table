@@ -32,7 +32,7 @@ input[type=text], input[type=number], select { font: inherit; padding: 3px 6px; 
 .die { width: 1.35em; height: 1.35em; vertical-align: -0.35em; }
 .die rect { fill: #fff; stroke: #333; stroke-width: 1.2; }
 .die circle { fill: #222; }
-.die.one circle { fill: var(--accent); }
+.die.one circle, .die.four circle { fill: var(--accent); }
 @media (prefers-color-scheme: dark) { .die rect { fill: #f2eee4; } }
 .cup .die { width: 2.2em; height: 2.2em; margin-right: 4px; vertical-align: middle; }
 .cuprow { align-items: center; }
@@ -48,7 +48,6 @@ input[type=text], input[type=number], select { font: inherit; padding: 3px 6px; 
 .faces .face { padding: 3px 4px; line-height: 0; }
 .faces .face .die { width: 1.7em; height: 1.7em; vertical-align: middle; }
 .faces .face.on { border-color: var(--felt); box-shadow: 0 0 0 2px var(--felt) inset; }
-.literal { font-size: 0.9rem; }
 button.big { padding: 8px 18px; font-weight: 600; }
 .reveal { border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 8px; }
 .reveal .verdict { font-size: 1.05rem; margin-bottom: 6px; }
