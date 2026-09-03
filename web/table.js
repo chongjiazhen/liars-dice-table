@@ -147,15 +147,15 @@
   // in-character teach cards; this is the plain page 2 of each). Keyed by the
   // engine's short name so the list order stays the engine's.
   const RULE_HELP = {
-    "surrender": "When your bid is challenged you may fold instead of lifting the cup: a reduced penalty, and nobody sees your dice. Bar rule; plays on the ship too.",
-    "chain-kill": "A challenge can sweep a run of recent bidders at once, at a depth you pick. Each swept seat answers on its own last bid, and every one that was wrong pays. Bar rule; plays on the ship too.",
-    "direction": "The seat that opens the hand chooses which way the bidding runs. Bar rule; plays on the ship too.",
+    "surrender": "When your bid is challenged you may fold instead of lifting the cup: a reduced penalty, and nobody sees your dice.",
+    "chain-kill": "A challenge can sweep a run of recent bidders at once, at a depth you pick. Each swept seat answers on its own last bid, and every one that was wrong pays.",
+    "direction": "The seat that opens the hand chooses which way the bidding runs.",
     "must-pairs": "A cup with no pair is shaken again until it pairs. Bar only: with the ship's shrinking dice pool a reroll leaks nearly the whole hand.",
-    "counter-kill": "A challenged bidder can double the stake instead of lifting; the challenger can double back, escalate, or fold. The loser pays the stake that stood, with no ceiling but nerve. Bar rule; plays on the ship too.",
-    "+2 reverse": "Raising the count by two or more reverses the direction of play. Bar rule; plays on the ship too.",
+    "counter-kill": "A challenged bidder can double the stake instead of lifting; the challenger can double back, escalate, or fold. The loser pays the stake that stood, with no ceiling but nerve.",
+    "+2 reverse": "Raising the count by two or more reverses the direction of play.",
     "palifico": "When a player is down to one die the next round is played with aces counting only as aces, no wilds. Ship only: the bar's fixed five dice never reach one die.",
-    "calza": "After a rival's bid, anyone off-turn may call the count exact. Spot on heals a die (sobers a drink in the bar); a miss costs one. Ship rule; plays in the bar too.",
-    "out-of-turn challenge": "After a rival's bid you may challenge it at once, without waiting for your turn. Ship rule; plays in the bar too."
+    "calza": "After a rival's bid, anyone off-turn may call the count exact. Spot on heals a die (sobers a drink in the bar); a miss costs one.",
+    "out-of-turn challenge": "After a rival's bid you may challenge it at once, without waiting for your turn."
   };
   let helpOpen = null;   // the rule whose help is showing
   function showRuleHelp(r) {
