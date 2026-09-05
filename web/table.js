@@ -105,7 +105,9 @@
   // ---- the read line -----------------------------------------------------------
   function readLine() {
     const e = load(STORE.est, null);
-    if (!e || !e.n) return "The table hasn't met you yet - it takes your measure at the end of each match.";
+    // The read is a per-HAND EWMA (sim.h's updateEstimate call, fed back into the
+    // next deal's reads); only the SAVE waits for the match to end.
+    if (!e || !e.n) return "The table hasn't met you yet - it reads you hand by hand, and keeps what it learned when the match ends.";
     const bluff = e.br > 0.4 ? "bluff often" : e.br < 0.15 ? "rarely bluff" : "bluff now and then";
     const call = e.ct > 0.5 ? "call thin" : e.ct < 0.25 ? "call only when sure" : "call when it's close";
     return "They think you " + bluff + " and " + call + " (" + e.n + " hands remembered).";
