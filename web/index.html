@@ -5,9 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Liar's Dice - the table</title>
 <link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700&display=swap">
 <link rel="stylesheet" href="table.css">
 </head>
 <body>
+<!-- Die paints. One defs block for the whole page: every die references these
+     by id, so the gradients cost one parse rather than one per die. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+  <linearGradient id="dieFace" x1="0" y1="0" x2="0.3" y2="1">
+    <stop offset="0" stop-color="#fffdf7"/>
+    <stop offset="0.55" stop-color="#f3eee0"/>
+    <stop offset="1" stop-color="#dcd3bf"/>
+  </linearGradient>
+  <linearGradient id="dieFaceDark" x1="0" y1="0" x2="0.3" y2="1">
+    <stop offset="0" stop-color="#f6f2e7"/>
+    <stop offset="0.55" stop-color="#e5dfd0"/>
+    <stop offset="1" stop-color="#c4bba6"/>
+  </linearGradient>
+</defs></svg>
 <main id="app">
   <header>
     <h1>Liar's Dice</h1>

@@ -20,6 +20,7 @@
   const BEAT = 1000;         // ms per bid
   const TENSE_BEAT = 1500;   // a challenge, a duel rung, a fold, a knockout
   const HAND_BEAT = 1700;    // a new deal
+  const REVEAL_STAGGER = 260;// ms between cuplines at the reveal, scaled like any beat
   const CALL_BEAT = 2500;    // the beat after a rival's bid in which you may call: 2.5 beats
 
   let M = null;        // the wasm module
@@ -40,12 +41,36 @@
   const PIPS = { 1: [[1, 1]], 2: [[2, 0], [0, 2]], 3: [[0, 0], [1, 1], [2, 2]],
                  4: [[0, 0], [0, 2], [2, 0], [2, 2]], 5: [[0, 0], [0, 2], [1, 1], [2, 0], [2, 2]],
                  6: [[0, 0], [0, 1], [0, 2], [2, 0], [2, 1], [2, 2]] };
+  // Each pip is two circles: a light rim half a unit low, then the ink over it,
+  // so the pip reads as drilled. The face gradient and bevel are painted by
+  // table.css off the defs block in index.html.
   function die(n, cls) {
-    const r = n === 1 ? 4.2 : 2.1;
-    const pips = (PIPS[n] || []).map(([x, y]) => "<circle cx='" + (5.5 + x * 5.5) + "' cy='" + (5.5 + y * 5.5) + "' r='" + r + "'/>").join("");
-    return "<svg class='die" + (cls ? " " + cls : "") + (n === 1 ? " one" : n === 4 ? " four" : "") + "' viewBox='0 0 22 22' aria-label='" + n + "'><rect x='1' y='1' width='20' height='20' rx='4'/>" + pips + "</svg>";
+    const r = n === 1 ? 4.4 : 2.15;
+    const pips = (PIPS[n] || []).map(([x, y]) => {
+      const cx = 5.5 + x * 5.5, cy = 5.5 + y * 5.5;
+      return "<circle class='pipl' cx='" + cx + "' cy='" + (cy + 0.55) + "' r='" + r + "'/>"
+           + "<circle cx='" + cx + "' cy='" + cy + "' r='" + r + "'/>";
+    }).join("");
+    return "<svg class='die" + (cls ? " " + cls : "") + (n === 1 ? " one" : n === 4 ? " four" : "")
+      + "' viewBox='0 0 22 22' aria-label='" + n + "'>"
+      + "<rect class='body' x='1' y='1' width='20' height='20' rx='4.6'/>"
+      + "<rect class='bevel' x='2' y='2' width='18' height='18' rx='3.8'/>"
+      + pips + "</svg>";
   }
   function cupHtml(hand) { return hand.map((d) => die(d)).join(""); }
+  // Which dice made the count. The rule is the bid's own mode - 飞 (mode 0)
+  // makes ones wild, 斋 (mode 1) does not - which is already correct for both
+  // tables, since ones are always bid 斋 and the ship is otherwise always 飞.
+  // A palifico round suspends wilds and this would over-count; rather than
+  // encode a second rule the caller checks the total against the engine's own
+  // and marks nothing when they disagree, so the marks are never wrong.
+  function bidHits(hands, bid) {
+    const wild = bid.mode === 0;
+    const hit = (d) => d === bid.face || (wild && d === 1);
+    let n = 0;
+    hands.forEach((h) => h.forEach((d) => { if (hit(d)) n += 1; }));
+    return { hit: hit, n: n };
+  }
   // Every bid carries its mode from the engine: 斋 (ones count as ones) or 飞
   // (ones wild) in the bar, where any face can be bid either way and ones are
   // always 斋; on the ship only aces are literal (no tag otherwise, as on the
@@ -282,12 +307,26 @@
         break;
       case "Reveal": {
         const box = $("reveal"); box.hidden = false;
-        const cups = ev.hands.map((h, s) => h.length ? "<div class='cupline'><span class='who'>" + seatName(s) + "</span> <span class='cup'>" + cupHtml(h) + "</span></div>" : "").join("");
+        // The cups come up a line at a time and the dice that made the count
+        // pulse once the last line has landed; the CSS reads both moments off
+        // these properties. ?fast=1 withholds .play, so drive.js sees the
+        // finished reveal on the first frame.
+        const mark = bidHits(ev.hands, ev.bid), marking = mark.n === ev.count;
+        const stagger = FAST ? 0 : Math.round(REVEAL_STAGGER * pace);
+        let lines = 0;
+        const cups = ev.hands.map((h, s) => {
+          if (!h.length) return "";
+          const at = lines * stagger; lines += 1;
+          return "<div class='cupline' style='--rv-delay:" + at + "ms'><span class='who'>" + seatName(s) + "</span> <span class='cup'>"
+               + h.map((d) => die(d, marking && mark.hit(d) ? "hit" : "")).join("") + "</span></div>";
+        }).join("");
+        box.className = "reveal" + (FAST ? "" : " play");
+        box.style.setProperty("--rv-pulse", (lines * stagger) + "ms");
         const exact = game.calza !== undefined;
         const verdict = exact
           ? (game.calza ? seatName(ev.seat) + " called it exactly right." : seatName(ev.seat) + " called exact and missed.")
           : seatName(ev.seat) + " loses the hand.";
-        box.innerHTML = "<div class='verdict'>" + bidHtml(ev.bid) + stakeText(game.stake) + " · <b>" + ev.count + "</b> on the table. " + verdict + "</div><div class='cups'>" + cups + "</div>" +
+        box.innerHTML = "<div class='verdict'>" + bidHtml(ev.bid) + stakeText(game.stake) + " · <b class='tally'>" + ev.count + "</b> on the table. " + verdict + "</div><div class='cups'>" + cups + "</div>" +
                         (FAST ? "" : "<button id='continue' class='primary'>Continue</button>");
         delete game.calza;
         log("  reveal" + stakeText(game.stake) + ": " + ev.count + " × " + ev.bid.face + " on the table; " + seatName(ev.seat) + (exact ? " called exact" : " loses"));
