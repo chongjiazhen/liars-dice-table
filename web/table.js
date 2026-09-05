@@ -220,7 +220,7 @@
       // the only tag is the one that gates on it: the two rules that cannot port.
       if (!r.portable) { const s = document.createElement("span"); s.className = "hint"; s.textContent = r.biome + " only"; l.appendChild(s); }
       if (!r.portable && r.biome !== home) c.disabled = true;
-      const w = document.createElement("button"); w.type = "button"; w.className = "why"; w.textContent = "?"; w.dataset.rule = r.id; w.title = "what this rule does";
+      const w = document.createElement("button"); w.type = "button"; w.className = "why"; w.textContent = "?"; w.dataset.rule = r.id; w.title = "explain this rule";
       w.addEventListener("click", (e) => { e.preventDefault(); showRuleHelp(r); });
       l.appendChild(w);
       box.appendChild(l);
@@ -509,7 +509,7 @@
     if (v.canChallenge) offers.push("Challenge out of turn");
     setPhase("window");
     $("cup").innerHTML = cupHtml(v.hand);
-    $("calzaYes").disabled = !v.canCalza; $("calzaYes").title = v.canCalza ? "call the count exact" : "no calza now";
+    $("calzaYes").disabled = !v.canCalza; $("calzaYes").title = v.canCalza ? "call the count exact" : "no exact call now";
     // The one Challenge button serves the window too: live only under the out-of-turn rule.
     $("challenge").disabled = !v.canChallenge;
     $("challenge").title = v.canChallenge ? "challenge the bid out of turn" : (game.rules.oot ? "no out-of-turn challenge now" : "not your turn");
@@ -562,10 +562,10 @@
     $("duelStand").title = "cups up now; the loser pays " + v.stake + " " + unit;
     $("duelEscalate").disabled = !v.canEscalate;
     $("duelEscalate").textContent = "Escalate to " + v.nextStake + "x";
-    $("duelEscalate").title = v.canEscalate ? who + " answers; a reveal then costs the loser " + v.nextStake + " " + unit : "the stake is at its stop";
+    $("duelEscalate").title = v.canEscalate ? "double the stake; " + who + " answers, and a reveal then costs the loser " + v.nextStake + " " + unit : "the stake is at its stop";
     $("duelFold").disabled = !v.canFold;
     $("duelFold").textContent = (v.inSweep && !v.isBidder ? "Concede the link, pay " : "Fold, pay ") + v.foldPenalty;
-    $("duelFold").title = v.canFold ? "no reveal on this bid; you pay " + v.foldPenalty + " " + (v.foldPenalty === 1 ? unit.slice(0, -1) : unit) : "a bidder never folds its own bid";
+    $("duelFold").title = v.canFold ? "fold now; no reveal, and you pay " + v.foldPenalty + " " + (v.foldPenalty === 1 ? unit.slice(0, -1) : unit) : "a bidder never folds its own bid";
     $("duelHint").textContent = v.isBidder && !v.canFold ? "Your bid stands either way; you cannot fold it." : "";
     $("duel").scrollIntoView({ block: "nearest" });
   }
@@ -577,6 +577,10 @@
     r(a);
   }
   // Which row is live. Everything else is greyed with a title that says why.
+  // Two shapes, and every control in this file holds to one of them: a LIVE
+  // control's title says what pressing it does, verb first ("call the count
+  // exact"); a DEAD one says why it will not answer, opening on no / not /
+  // only ("no standing bid to call"). Lowercase, no full stop, either way.
   function setPhase(p) {
     game.phase = p;
     $("turn").classList.toggle("on", p === "turn" || p === "window");
@@ -584,7 +588,7 @@
     const off = (ids, why) => ids.forEach((id) => { const e = $(id); e.disabled = true; e.title = why; });
     if (p !== "turn") {
       off(["challenge", "sweepDepth", "bidTyped", "qty", "qtyUp", "qtyDown", "modeBtn"], "not your turn");
-      document.querySelectorAll("#menu .cell, #faces .face").forEach((b) => { b.disabled = true; });
+      document.querySelectorAll("#menu .cell, #faces .face").forEach((b) => { b.disabled = true; b.title = "not your turn"; });
       $("turnMsg").textContent = game.over ? "" : "waiting on the table";
     }
     if (p !== "window") off(["calzaYes"], "only in the beat after a rival's bid");
@@ -596,7 +600,10 @@
     game.turn = 0; game.view = v;
     renderSeats();
     setPhase("turn");
-    ["qty", "qtyUp", "qtyDown"].forEach((id) => { $(id).disabled = false; $(id).title = ""; });
+    // Live again, each with its own title back: blanking them here left the
+    // stepper the one row on the page with nothing to say from the first turn on.
+    const stepTitles = { qty: "the quantity to bid", qtyUp: "one more", qtyDown: "one fewer" };
+    Object.keys(stepTitles).forEach((id) => { $(id).disabled = false; $(id).title = stepTitles[id]; });
     $("cup").innerHTML = cupHtml(v.hand);
     $("unknown").textContent = v.unknown + " dice you can't see";
     // The floor, as a fixed grid: one column per face, a 飞 row and a 斋 row in
@@ -617,8 +624,15 @@
         const m = f === 1 ? 1 : mode;
         const b = (f === 1 && !game.dudo && mode === 0) ? null : cheapest.get(f + ":" + m);
         const btn = document.createElement("button"); btn.className = "cell";
-        if (b) { btn.innerHTML = "<b>" + b.qty + "</b> × " + die(b.face); btn.addEventListener("click", () => answer(v.menu.indexOf(b))); }
-        else { btn.innerHTML = "<b>–</b> × " + die(f); btn.disabled = true; }
+        if (b) {
+          btn.innerHTML = "<b>" + b.qty + "</b> × " + die(b.face);
+          btn.title = "bid " + bidText(b);
+          btn.addEventListener("click", () => answer(v.menu.indexOf(b)));
+        } else {
+          btn.innerHTML = "<b>–</b> × " + die(f);
+          btn.disabled = true;
+          btn.title = game.dudo ? "no legal raise on this face" : "no legal raise on this face in " + (m === 1 ? "斋" : "飞");
+        }
         row.appendChild(btn);
       }
       menu.appendChild(row);
@@ -668,6 +682,7 @@
     const faces = $("faces"); faces.innerHTML = "";
     for (let f = 1; f <= 6; f++) {
       const b = document.createElement("button"); b.className = "face" + (f === p.face ? " on" : ""); b.dataset.face = f; b.innerHTML = die(f);
+      b.title = "build a bid on this face";
       b.addEventListener("click", () => {
         // A face click lands on a bid you can press: the quantity snaps up to
         // that face's cheapest legal raise when what is typed is below it.
@@ -680,9 +695,12 @@
     // The mode key, bar only: ones are always 斋, so it goes quiet on that face.
     const mb = $("modeBtn"); mb.hidden = !!game.dudo;
     mb.disabled = p.face === 1;
+    // The mode key keeps its meaning in the title - the face is all its label has room for.
+    mb.title = p.face === 1 ? "ones are always 斋" : "switch this bid between 飞 (ones wild) and 斋 (ones count as ones); switching mid-round is priced (破斋)";
     mb.textContent = pickMode(p) === 1 ? "斋 zhai" : "飞 fei";
     const ok = legalIndex(p) >= 0;
     $("bidTyped").disabled = !ok;
+    $("bidTyped").title = ok ? "bid what the stepper reads" : "no legal raise at that quantity on this face";
     $("bidTyped").textContent = ok ? "Bid " + p.qty + " × " + p.face + " " + (modeTag(game.view.menu[legalIndex(p)]) || { t: "" }).t : "Not a legal raise";
   }
   function answer(i) {
