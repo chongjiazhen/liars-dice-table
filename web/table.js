@@ -17,11 +17,14 @@
   const FAST = /[?&]fast=1/.test(location.search);
   let pace = 1;              // seconds per beat, the one tempo knob
   const beat = (ms) => (FAST ? 0 : Math.round(ms * pace));
+  const REDUCED = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
   const BEAT = 1000;         // ms per bid
   const TENSE_BEAT = 1500;   // a challenge, a duel rung, a fold, a knockout
   const HAND_BEAT = 1700;    // a new deal
   const REVEAL_STAGGER = 260;// ms between cuplines at the reveal, scaled like any beat
   const PAY_BEAT = 1300;     // the seat takes the hit, and is seen to
+  const COUNT_STEP = 120;    // ms a tick while a cost of two or more drains
+  const COUNT_TICKS = 8;     // at most, so a 32x duel drains in a beat, not four
   const CALL_BEAT = 2500;    // the beat after a rival's bid in which you may call: 2.5 beats
 
   let M = null;        // the wasm module
@@ -235,6 +238,66 @@
   function seatName(s) { return s >= 0 && s < game.n ? game.names[s] : "nobody"; }
   function log(line) { game.log.push(line); $("log").textContent = game.log.join("\n"); $("log").scrollTop = 1e9; }
 
+  // What a seat's counter reads. game.shown lags game.dice while a cost of two
+  // or more drains; everywhere else the two are the same value, so the engine
+  // stays the only source of truth and nothing else has to know about the lag.
+  function shownDice(s) { return (game.shown && game.shown[s] != null) ? game.shown[s] : game.dice[s]; }
+  function statHtml(s) {
+    // The bar is a life count in the open for the beta: the browser build sets
+    // the drink window to 1, so the fatal drink is the tolerance itself and
+    // lives left = cap - drinks, with nothing hidden and nothing drawn. (The
+    // device keeps the 2026-07-21 hidden-C design; only this table is linear.)
+    const d = shownDice(s);
+    const mk = game.iou && game.markers[s] >= 0 ? " · " + game.markers[s] + " markers" : "";
+    if (game.dudo) return d + (d === 1 ? " die" : " dice") + mk;
+    if (!game.alive[s]) return "out" + mk;
+    const left = game.tol[s] - d;
+    return "<span title='one life per drink; the loser of a hand drinks the stake'>" + left + " of " + game.tol[s] + " left</span>"
+         + (left === 1 ? " <span class='danger' title='one more drink and this seat is out'>last one</span>" : "") + mk;
+  }
+
+  // Drain a cost of two or more instead of jumping it. Only the paying seat's
+  // .stat is rewritten per tick - a full renderSeats would rebuild the card and
+  // restart the strike and the floating chip on every step. At most COUNT_TICKS
+  // steps, so the 32x stop drains in about a beat rather than four.
+  function drainTo(seat, from) {
+    const to = game.dice[seat], span = Math.abs(to - from);
+    if (!span) { stopDrain(); return; }
+    const per = Math.max(1, Math.ceil(span / COUNT_TICKS)), dir = to > from ? 1 : -1;
+    game.drain = setInterval(() => {
+      const next = game.shown[seat] + dir * per;
+      game.shown[seat] = dir > 0 ? Math.min(next, to) : Math.max(next, to);
+      const card = $("seatsView").children[seat], stat = card && card.querySelector(".stat");
+      if (stat) stat.innerHTML = statHtml(seat);
+      if (game.shown[seat] === to) stopDrain();
+    }, Math.max(1, beat(COUNT_STEP)));
+  }
+  function stopDrain() {
+    if (game && game.drain) { clearInterval(game.drain); game.drain = null; }
+    if (game) game.shown = null;
+  }
+  // The engine reports a seat's new count on the event that decides the hand -
+  // a stand, a reveal - one or two events before the Penalty that explains it,
+  // so by payment time the number has already moved. Hold any drop of two or
+  // more at its old value here, and let the Penalty below walk it down. A hold
+  // costs nothing if no drain follows: the next event carrying dice clears it,
+  // and a deal always carries dice.
+  function holdDrop(before) {
+    let moved = false, next = null;
+    for (let s = 0; s < game.n; s++) {
+      const d = game.dice[s] - before[s];
+      if (d !== 0) moved = true;
+      // Only in the direction a payment moves the count - drinks up in the bar,
+      // dice down on the ship. A gain (a knockout handing its dice on) has no
+      // Penalty to drain it and would just sit stale.
+      const lost = game.dudo ? -d : d;
+      if (lost >= 2) { if (!next) next = new Array(game.n).fill(null); next[s] = before[s]; }
+    }
+    // Later events restate the same counts; only an actual move revises a hold,
+    // or the reveal would clear the hold the stand had just taken.
+    if (moved) { game.shown = next; game.holdAge = 0; }
+  }
+
   function renderSeats() {
     const box = $("seatsView"); box.innerHTML = "";
     for (let s = 0; s < game.n; s++) {
@@ -248,14 +311,8 @@
       // the drink window to 1, so the fatal drink is the tolerance itself and
       // lives left = cap - drinks, with nothing hidden and nothing drawn. (The
       // device keeps the 2026-07-21 hidden-C design; only this table is linear.)
-      const left = game.tol[s] - game.dice[s];
-      const stat = game.dudo ? (game.dice[s] + (game.dice[s] === 1 ? " die" : " dice"))
-                 : (!game.alive[s] ? "out"
-                    : "<span title='one life per drink; the loser of a hand drinks the stake'>" + left + " of " + game.tol[s] + " left</span>"
-                      + (left === 1 ? " <span class='danger' title='one more drink and this seat is out'>last one</span>" : ""));
-      const mk = game.iou && game.markers[s] >= 0 ? " · " + game.markers[s] + " markers" : "";
       d.innerHTML = (struck ? "<span class='paid'>-" + game.hit.n + "</span>" : "")
-                  + "<div class='name'>" + seatName(s) + "</div><div class='stat'>" + stat + mk + "</div><div class='last'>" + (game.last[s] || "&nbsp;") + "</div><div class='fuse'><i></i></div>";
+                  + "<div class='name'>" + seatName(s) + "</div><div class='stat'>" + statHtml(s) + "</div><div class='last'>" + (game.last[s] || "&nbsp;") + "</div><div class='fuse'><i></i></div>";
       box.appendChild(d);
     }
     $("standing").innerHTML = game.standing
@@ -265,7 +322,12 @@
 
   // Apply one event to the state and the screen. Returns the delay before the next.
   function apply(ev) {
-    if (ev.dice) game.dice = ev.dice.slice();
+    const before = game.dice.slice();
+    if (game.drain) { clearInterval(game.drain); game.drain = null; game.shown = null; }
+    // A hold waits out the stand and the reveal to reach its Penalty. If no
+    // payment claims it by then, drop it rather than leave a stale number.
+    if (game.shown && ++game.holdAge > 3) game.shown = null;
+    if (ev.dice) { game.dice = ev.dice.slice(); if (!FAST && !REDUCED) holdDrop(before); }
     game.hit = null;             // one event long; Penalty below sets it again
     let wait = beat(BEAT);
     const stakeText = (n) => (n > 1 ? " at " + n + "x" : "");
@@ -353,6 +415,9 @@
         game.hit = { seat: ev.seat, n: ev.count };
         log("  " + seatName(ev.seat) + " pays " + ev.count + unit + why);
         wait = beat(PAY_BEAT);   // the cost is a beat, not a silent decrement
+        // One life is a jump either way; a duel's doubled stake is worth watching
+        // drain. renderSeats runs at the end of apply and picks up the lag.
+        if (game.shown && game.shown[ev.seat] != null) drainTo(ev.seat, game.shown[ev.seat]);
         break;
       }
       case "KnockOut":
@@ -661,6 +726,7 @@
     game = { n, names, dudo, iou, dice: new Array(n).fill(dudo ? 5 : 0), alive: new Array(n).fill(true), last: new Array(n).fill(""),
              tol: [info.player.tolerance].concat(seatsRows.map((r) => r.tolerance)), markers,
              standing: null, bidder: -1, turn: -1, hand: 0, over: false, view: null, pick: null, stake: 1, phase: "idle",
+             shown: null, drain: null, hit: null, holdAge: 0,
              rules: { chain: !dudo && !!(rules.mask & (1 << 1)), calza: !!(rules.mask & (1 << 7)), oot: !!(rules.mask & (1 << 8)), ck: rules.ck === 1 },
              log: ["# Liar's Dice " + (dudo ? "ship" : "bar") + " table, seed " + seed + ", build " + $("build").textContent,
                    "# cfg " + cfg, "# seats " + names.join(", ")] };
