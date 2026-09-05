@@ -214,12 +214,15 @@
     for (let s = 0; s < game.n; s++) {
       const d = document.createElement("div");
       d.className = "seat" + (s === 0 ? " you" : "") + (s === game.turn ? " turn" : "") + (game.alive[s] ? "" : " out");
-      // The bar shows the count and the danger flag, never the cap (design
-      // 2026-07-21 "hidden C, visible count"): the flag lights on the first of
-      // the six drinks up to the cap, one of which is the secret last one.
-      const danger = !game.dudo && game.alive[s] && game.dice[s] >= game.tol[s] - 5;
+      // The bar is a life count in the open for the beta: the browser build sets
+      // the drink window to 1, so the fatal drink is the tolerance itself and
+      // lives left = cap - drinks, with nothing hidden and nothing drawn. (The
+      // device keeps the 2026-07-21 hidden-C design; only this table is linear.)
+      const left = game.tol[s] - game.dice[s];
       const stat = game.dudo ? (game.dice[s] + (game.dice[s] === 1 ? " die" : " dice"))
-                 : (game.dice[s] + (game.dice[s] === 1 ? " drink" : " drinks") + (danger ? " <span class='danger' title='in the last six drinks: one of them, drawn at the deal and kept secret, is the last'>in danger</span>" : ""));
+                 : (!game.alive[s] ? "out"
+                    : "<span title='one life per drink; the loser of a hand drinks the stake'>" + left + " of " + game.tol[s] + " left</span>"
+                      + (left === 1 ? " <span class='danger' title='one more drink and this seat is out'>last one</span>" : ""));
       const mk = game.iou && game.markers[s] >= 0 ? " · " + game.markers[s] + " markers" : "";
       d.innerHTML = "<div class='name'>" + seatName(s) + "</div><div class='stat'>" + stat + mk + "</div><div class='last'>" + (game.last[s] || "&nbsp;") + "</div><div class='fuse'><i></i></div>";
       box.appendChild(d);
@@ -274,7 +277,7 @@
       case "Calza":
         game.turn = -1; game.calza = ev.count > 0;
         game.last[ev.seat] = "<span class='act'>calls it exact</span>";
-        log("  " + seatName(ev.seat) + " calls it exact" + (ev.count > 0 ? (game.dudo ? " - and it is (+1 die)" : " - and it is (sobers a drink)") : (game.dudo ? " - it is not (-1 die)" : " - it is not (drinks one)")));
+        log("  " + seatName(ev.seat) + " calls it exact" + (ev.count > 0 ? (game.dudo ? " - and it is (+1 die)" : " - and it is (+1 life)") : (game.dudo ? " - it is not (-1 die)" : " - it is not (-1 life)")));
         wait = beat(TENSE_BEAT);
         break;
       case "Reveal": {
@@ -363,8 +366,8 @@
   function showCalza() {
     if (!calzaView || !pending) return;
     const v = calzaView; calzaView = null;
-    const heal = game.dudo ? (v.heal ? "a die back" : "nothing, your cup is full") : (v.heal ? "sobers you a drink" : "nothing, you are sober");
-    const miss = game.dudo ? "a die" : "a drink";
+    const heal = game.dudo ? (v.heal ? "a die back" : "nothing, your cup is full") : (v.heal ? "a life back" : "nothing, you are on full lives");
+    const miss = game.dudo ? "a die" : "a life";
     const offers = [];
     if (v.canCalza) offers.push("Exact! (a hit is " + heal + ", a miss costs " + miss + ")");
     if (v.canChallenge) offers.push("Challenge out of turn");

@@ -18,7 +18,7 @@
   <section id="setup" class="panel">
     <h2>Sit down</h2>
     <div class="row">
-      <label><input type="radio" name="format" value="bar" checked> Bar <span class="hint">(five dice, drinks)</span></label>
+      <label><input type="radio" name="format" value="bar" checked> Bar <span class="hint">(five dice, lives)</span></label>
       <label><input type="radio" name="format" value="dudo"> Ship <span class="hint">(dice shrink)</span></label>
       <label class="gap"><input type="checkbox" id="iou"> IOU mode <span class="hint">(ship only: Cove is the house. You and the crew hold markers against her: a plain hand moves one, a hand that knocks her out sheds fifteen for every seat still holding markers, and being knocked out by her adds two. Markers persist in this browser.)</span></label>
     </div>
@@ -90,8 +90,18 @@
       <pre id="log" class="log"></pre>
       <button id="copyLog">Copy match log</button> <span id="copyMsg" class="hint"></span>
     </details>
-    <p class="hint"><b>The bar's drinks.</b> The loser of every hand drinks the stake: one, doubled for each rung of a duel. Each seat has a tolerance, and the six drinks up to it are the danger zone: the seat shows <b>in danger</b> from the first of them. Which of those six is the last is drawn once at the deal, evenly, and kept secret, so in the zone each further drink is a 1 in 6 chance of passing out, then 1 in 5, 1 in 4, 1 in 3, 1 in 2, and the sixth is certain. Russian roulette without re-spinning: the cylinder is set once. Nothing else is random about it, and nobody sees the cap or the drawn drink, your own seat included; the flag says at risk, never next one. Calling a count exact sobers you one. <b>The ship's dice</b> are lives in the open: lose a hand, lose a die, no draw.</p>
-    <p class="hint">This is the host-sim table: the same match loop every difficulty number was measured on, with you at seat 0. When a bid is challenged the two of them can double the stake back and forth (counter, escalate) before the cups come up, as deep as nerve allows with a hard stop at 32x; the loser pays the stake that stood, in full. Those rungs are yours when you are in the duel: stand, escalate, or (as the challenger) fold for the reduced penalty. So is a chain-kill sweep (challenge a run of recent bidders at once, at a depth you pick; each swept seat answers on its own bid, and you answer them), and the beat after a rival's bid, when Exact! (a hit heals a die or sobers a drink, a miss costs one) and, under the out-of-turn rule, Challenge light up for one beat: say nothing and it passes, as at a real table. Every decision that costs you is yours. In the bar every bid is 飞 (ones are wild) or 斋 (ones count only as ones): a bid of ones is always 斋, any other face can be bid either way, and switching mid-round is priced. On the ship ones are wild, and a bid of aces counts aces alone and cannot open.</p>
+    <details class="brief">
+      <summary>How the table works</summary>
+      <ul>
+        <li><b>Bar - lives.</b> Each seat has a set number of lives, shown on the seat. Lose a hand and you drink the stake: one life, doubled for each rung of a duel. At zero you are out. Calling a count exact gives a life back.</li>
+        <li><b>Ship - dice.</b> Lose a hand, lose a die. Out of dice, out of the match.</li>
+        <li><b>Duels.</b> A challenge can be doubled back and forth before the cups come up, to a hard stop at 32x; the loser pays the stake that stood. When the duel is yours: stand, escalate, or - as the challenger - fold for the reduced penalty.</li>
+        <li><b>Sweep.</b> Challenge a run of recent bidders at once, at a depth you pick. Each swept seat answers on its own bid, and you answer them.</li>
+        <li><b>The beat after a rival's bid.</b> Exact! - and, under the out-of-turn rule, Challenge - light up for one beat. Say nothing and it passes, as at a real table.</li>
+        <li><b>Bar bids are 飞 or 斋.</b> 飞 ones are wild, 斋 ones count only as ones. A bid of ones is always 斋, any other face can be bid either way, and switching mid-round is priced. On the ship ones are wild, and a bid of aces counts aces alone and cannot open.</li>
+      </ul>
+      <p class="hint">This is the host-sim table - the same match loop every difficulty number was measured on, with you at seat 0. Every decision that costs you is yours.</p>
+    </details>
   </section>
 
   <section id="reporting" class="panel">

@@ -79,3 +79,29 @@ button.big { padding: 8px 18px; font-weight: 600; }
 .rulehelp b { color: var(--felt); }
 .panel.flash { animation: flash 1.6s ease-out; }
 @keyframes flash { 0% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+/* Phone. The floor grid is the one row that cannot shrink: seven cells wide it
+   overflows every handset and the .menu scroller turned it into a sideways
+   swipe. Below 620px each mode becomes a 3-wide block under its own 飞/斋 tag,
+   two rows deep, with taller cells for a thumb. Nothing is hidden or reordered
+   - the same cells, wrapped. */
+@media (max-width: 620px) {
+  #app { padding: 10px; }
+  h1 { font-size: 1.45rem; }
+  h2 .pace { float: none; display: block; margin-top: 4px; }
+  .menu { overflow-x: visible; gap: 10px; }
+  .menu .mrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .menu .mtag { grid-column: 1 / -1; justify-self: start; min-width: 0; }
+  .menu .cell { min-width: 0; padding: 10px 4px; }
+  .stepper .qty input { width: 3.6em; }
+  .faces .face { padding: 4px 3px; }
+  .seats { grid-template-columns: repeat(auto-fit, minmax(95px, 1fr)); }
+  .reveal .cups { grid-template-columns: 1fr; }
+  button.big { padding: 10px 14px; }
+}
+
+/* The rules brief: short labelled lines behind one fold, not a prose wall. */
+.brief { margin: 10px 0 0; }
+.brief > ul { margin: 6px 0 0; padding-left: 18px; }
+.brief > ul li { margin: 4px 0; color: var(--muted); }
+.brief > ul li b { color: var(--ink); }
