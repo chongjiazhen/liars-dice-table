@@ -21,6 +21,7 @@
   const TENSE_BEAT = 1500;   // a challenge, a duel rung, a fold, a knockout
   const HAND_BEAT = 1700;    // a new deal
   const REVEAL_STAGGER = 260;// ms between cuplines at the reveal, scaled like any beat
+  const PAY_BEAT = 1300;     // the seat takes the hit, and is seen to
   const CALL_BEAT = 2500;    // the beat after a rival's bid in which you may call: 2.5 beats
 
   let M = null;        // the wasm module
@@ -238,7 +239,11 @@
     const box = $("seatsView"); box.innerHTML = "";
     for (let s = 0; s < game.n; s++) {
       const d = document.createElement("div");
-      d.className = "seat" + (s === 0 ? " you" : "") + (s === game.turn ? " turn" : "") + (game.alive[s] ? "" : " out");
+      // A seat that just paid is struck: the card takes the blow, its count
+      // reddens, and the cost floats off it. game.hit lives for exactly one
+      // event (apply clears it), so this renders on the payment and no later.
+      const struck = !FAST && game.hit && game.hit.seat === s;
+      d.className = "seat" + (s === 0 ? " you" : "") + (s === game.turn ? " turn" : "") + (game.alive[s] ? "" : " out") + (struck ? " struck" : "");
       // The bar is a life count in the open for the beta: the browser build sets
       // the drink window to 1, so the fatal drink is the tolerance itself and
       // lives left = cap - drinks, with nothing hidden and nothing drawn. (The
@@ -249,7 +254,8 @@
                     : "<span title='one life per drink; the loser of a hand drinks the stake'>" + left + " of " + game.tol[s] + " left</span>"
                       + (left === 1 ? " <span class='danger' title='one more drink and this seat is out'>last one</span>" : ""));
       const mk = game.iou && game.markers[s] >= 0 ? " · " + game.markers[s] + " markers" : "";
-      d.innerHTML = "<div class='name'>" + seatName(s) + "</div><div class='stat'>" + stat + mk + "</div><div class='last'>" + (game.last[s] || "&nbsp;") + "</div><div class='fuse'><i></i></div>";
+      d.innerHTML = (struck ? "<span class='paid'>-" + game.hit.n + "</span>" : "")
+                  + "<div class='name'>" + seatName(s) + "</div><div class='stat'>" + stat + mk + "</div><div class='last'>" + (game.last[s] || "&nbsp;") + "</div><div class='fuse'><i></i></div>";
       box.appendChild(d);
     }
     $("standing").innerHTML = game.standing
@@ -260,6 +266,7 @@
   // Apply one event to the state and the screen. Returns the delay before the next.
   function apply(ev) {
     if (ev.dice) game.dice = ev.dice.slice();
+    game.hit = null;             // one event long; Penalty below sets it again
     let wait = beat(BEAT);
     const stakeText = (n) => (n > 1 ? " at " + n + "x" : "");
     switch (ev.kind) {
@@ -343,7 +350,9 @@
         const unit = game.dudo ? (Math.abs(ev.count) === 1 ? " die" : " dice") : (Math.abs(ev.count) === 1 ? " drink" : " drinks");
         const why = game.stake > 1 && ev.count > 1 ? " (" + game.stake + "x stake)" : "";
         game.last[ev.seat] = "pays " + ev.count + unit + why;
+        game.hit = { seat: ev.seat, n: ev.count };
         log("  " + seatName(ev.seat) + " pays " + ev.count + unit + why);
+        wait = beat(PAY_BEAT);   // the cost is a beat, not a silent decrement
         break;
       }
       case "KnockOut":

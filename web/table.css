@@ -48,7 +48,7 @@ button.danger { border-color: var(--accent); color: var(--accent); }
 button:disabled { opacity: 0.5; cursor: default; }
 input[type=text], input[type=number], select { font: inherit; padding: 3px 6px; }
 .seats { display: grid; grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); gap: 8px; margin: 8px 0; }
-.seat { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+.seat { position: relative; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
 .seat.you { border-color: var(--felt); }
 .seat.turn { box-shadow: 0 0 0 2px var(--accent) inset; }
 .seat.out { opacity: 0.45; }
@@ -122,8 +122,36 @@ button.big { padding: 8px 18px; font-weight: 600; }
 .verdict .tally { display: inline-block; }
 .reveal.play .verdict .tally { animation: tally 620ms ease-out var(--rv-pulse, 0ms) 2 backwards; }
 @keyframes tally { 0%, 100% { transform: none; } 35% { transform: scale(1.3); color: var(--accent); } }
+/* Paying is the other half of the reveal, and it was a silent decrement. The
+   seat that pays takes the blow, its count reddens, and the cost floats off
+   the card. table.js hangs .struck on the seat for exactly one event and
+   withholds it under ?fast=1, like the reveal's .play. */
+.seat.struck { animation: struck 520ms ease-out; }
+@keyframes struck {
+  0%   { box-shadow: 0 0 0 2px var(--accent) inset; transform: none; }
+  15%  { transform: translateX(-3px); }
+  35%  { transform: translateX(3px); }
+  55%  { transform: translateX(-2px); }
+  100% { box-shadow: 0 0 0 0 transparent; transform: none; }
+}
+.seat.struck .stat { animation: statHit 520ms ease-out; }
+@keyframes statHit { 0%, 100% { color: var(--muted); } 30% { color: var(--accent); } }
+.seat .paid {
+  position: absolute; top: 2px; right: 6px;
+  font-family: var(--display); font-weight: 700; color: var(--accent);
+  animation: paidUp 1100ms ease-out forwards;
+}
+@keyframes paidUp {
+  0%   { opacity: 0; transform: translateY(7px) scale(.9); }
+  18%  { opacity: 1; transform: translateY(0) scale(1.12); }
+  70%  { opacity: 1; transform: translateY(-4px) scale(1); }
+  100% { opacity: 0; transform: translateY(-13px) scale(1); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .reveal.play .cupline, .reveal.play .die.hit, .reveal.play .verdict .tally { animation: none; }
+  .reveal.play .cupline, .reveal.play .die.hit, .reveal.play .verdict .tally,
+  .seat.struck, .seat.struck .stat { animation: none; }
+  .seat .paid { animation: none; opacity: 1; }
 }
 .log { max-height: 220px; overflow: auto; background: rgba(127,127,127,0.08); padding: 8px; font-size: 0.85rem; white-space: pre-wrap; }
 .record { font-size: 0.9rem; color: var(--muted); }
