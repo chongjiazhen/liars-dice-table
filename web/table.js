@@ -347,6 +347,18 @@
         game.hand = ev.hand; game.standing = null; game.bidder = -1; game.turn = ev.seat; game.stake = 1;
         game.last = game.last.map((_, s) => (game.alive[s] ? "" : "out"));
         $("reveal").hidden = true;
+        // Your cup is the deal's, not the last hand's: the engine hands seat 0
+        // its own dice on HandStart, so the counter refreshes when the table is
+        // dealt rather than when the turn finally reaches you.
+        if (ev.you) {
+          $("cup").innerHTML = cupHtml(ev.you);
+          // Nothing is seen yet at the deal, so the hidden count is just the
+          // rest of the table: cup sizes on the ship, five a live seat in the bar.
+          const hidden = game.dudo
+            ? ev.dice.reduce((a, b) => a + b, 0) - ev.dice[0]
+            : 5 * (game.alive.filter(Boolean).length - 1);
+          $("unknown").textContent = hidden + " dice you can't see";
+        }
         log("H" + (ev.hand + 1) + " deal, " + seatName(ev.seat) + " opens" + (game.dudo ? "  dice " + ev.dice.join("/") : "  drinks " + ev.dice.join("/")));
         wait = beat(HAND_BEAT);
         break;
