@@ -15,6 +15,17 @@
   const $ = (id) => document.getElementById(id);
   const STORE = { est: "ld.estimate", record: "ld.record", markers: "ld.markers", pace: "ld.pace" };
   const FAST = /[?&]fast=1/.test(location.search);
+  // ?glass=1 - an A/B, not a setting. The panels become frosted glass over the
+  // felt instead of paper cards; drop the flag to compare the same hand. Glass
+  // is a refraction effect and the felt behind a panel is nearly flat, so there
+  // is not much for it to bend - which is the thing the comparison is for.
+  if (/[?&]glass=1/.test(location.search)) {
+    document.documentElement.classList.add("glass");
+    document.addEventListener("DOMContentLoaded", () => {
+      const sub = document.querySelector(".sub");
+      if (sub) sub.insertAdjacentHTML("beforeend", " <span class='abtag'>glass A/B - drop ?glass=1 for paper</span>");
+    });
+  }
   let pace = 1;              // seconds per beat, the one tempo knob
   const beat = (ms) => (FAST ? 0 : Math.round(ms * pace));
   const REDUCED = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;

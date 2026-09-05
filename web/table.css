@@ -192,3 +192,26 @@ button.big { padding: 8px 18px; font-weight: 600; }
 .brief > ul { margin: 6px 0 0; padding-left: 18px; }
 .brief > ul li { margin: 4px 0; color: var(--muted); }
 .brief > ul li b { color: var(--ink); }
+
+
+/* ?glass=1 - the A/B, off by default and never the shipped look unless it wins.
+   Panels stop being paper and become frosted glass over the felt. The tint has
+   to carry most of the contrast on its own: the backdrop is a near-flat green,
+   so the blur has little to bend and the panel would otherwise read as a dimmer
+   rectangle. The @supports arm keeps text legible where backdrop-filter is
+   absent, by falling back to something close to the paper it replaced. */
+.glass .panel {
+  background: color-mix(in srgb, var(--paper) 58%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(1.25);
+  backdrop-filter: blur(14px) saturate(1.25);
+  border-color: color-mix(in srgb, var(--onfelt) 34%, transparent);
+  box-shadow: var(--card-shadow), inset 0 1px 0 color-mix(in srgb, var(--onfelt) 30%, transparent);
+}
+.glass .log, .glass .rulehelp { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.glass .abtag {
+  font-size: .8rem; border: 1px solid var(--onfelt-dim); border-radius: 4px;
+  padding: 0 5px; margin-left: 4px; white-space: nowrap;
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass .panel { background: color-mix(in srgb, var(--paper) 92%, transparent); }
+}
