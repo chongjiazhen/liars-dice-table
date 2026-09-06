@@ -13,7 +13,8 @@
 (function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
-  const STORE = { est: "ld.estimate", record: "ld.record", markers: "ld.markers", pace: "ld.pace" };
+  const STORE = { est: "ld.estimate", record: "ld.record", markers: "ld.markers", pace: "ld.pace",
+                  seen: "ld.seen", nights: "ld.nights" };
   const FAST = /[?&]fast=1/.test(location.search);
   // ?glass=1 - an A/B, not a setting. The panels become frosted glass over the
   // felt instead of paper cards; drop the flag to compare the same hand. Glass
@@ -107,10 +108,10 @@
     const e = load(STORE.est, null);
     // The read is a per-HAND EWMA (sim.h's updateEstimate call, fed back into the
     // next deal's reads); only the SAVE waits for the match to end.
-    if (!e || !e.n) return "The table hasn't met you yet - it reads you hand by hand, and keeps what it learned when the match ends.";
+    if (!e || !e.n) return "The table hasn't met you yet - it reads you hand by hand, from the ones that reach a reveal with you in them.";
     const bluff = e.br > 0.4 ? "bluff often" : e.br < 0.15 ? "rarely bluff" : "bluff now and then";
     const call = e.ct > 0.5 ? "call thin" : e.ct < 0.25 ? "call only when sure" : "call when it's close";
-    return "They think you " + bluff + " and " + call + " (" + e.n + " hands remembered).";
+    return "They think you " + bluff + " and " + call + " (" + e.n + (e.n === 1 ? " hand" : " hands") + " remembered).";
   }
   function renderRead() { $("readline").textContent = readLine(); }
   function renderRecord() {
@@ -185,6 +186,7 @@
     const n = seatOrder.length;
     $("play").disabled = n === 0;
     $("play").textContent = n === 0 ? "Seat a rival" : "Deal (table of " + (n + 1) + ")";
+    applyHouse(false);   // the cast brings the rules: change the chairs, the house re-picks
   }
   // What each house rule does, in the page's own words (the device carries the
   // in-character teach cards; this is the plain page 2 of each). Keyed by the
@@ -208,6 +210,83 @@
     if (helpOpen !== null) p.innerHTML = "<b>" + r.name + "</b> - " + (RULE_HELP[r.name] || "No note for this rule yet.");
     document.querySelectorAll("#rules .why").forEach((b) => b.classList.toggle("on", parseInt(b.dataset.rule, 10) === helpOpen));
   }
+  // ---- the house's own pick ------------------------------------------------
+  // A COVERAGE nudge, not a campaign. Every rule checkbox opens off and a
+  // playtester reasonably leaves them there - they read as advanced, or as
+  // one more thing to configure - so the nine rules and their notes were
+  // content nobody was ever pointed at. From the second night on the house
+  // deals in the rules NOBODY HAS TRIED YET, two at a time, and says so.
+  //
+  // Deliberately NOT the device's rule school. There a rule is earned: you
+  // best a rival and they show you their trick. Gating on the record here
+  // would withhold the rules from exactly the testers least likely to tick
+  // them, since most of them are under water against this cast - so nothing
+  // reads the record or the streak, only what has been PLAYED.
+  //
+  // Night one stays bare: mask 0 is the configuration every difficulty number
+  // in the roster was measured at, so a first session stays comparable to it.
+  // Once every rule at this table has been seen the house stops nudging - the
+  // funnel has done its job.
+  let houseTouched = false;
+  // 1:1 by construction (roster.h: teacher index == rule index), keyed off the
+  // engine's own biome field rather than a hardcoded 6.
+  function ruleOwner(r) {
+    const cast = r.biome === "bar" ? info.bar : info.ship;
+    const i = r.biome === "bar" ? r.id : r.id - info.bar.length;
+    return cast[i] || null;
+  }
+  const HOUSE_PICKS = 2;
+  function houseProposal() {
+    if (!load(STORE.nights, 0)) return null;              // night one is the bare table
+    const seen = load(STORE.seen, 0);
+    const home = format() === "dudo" ? "ship" : "bar";
+    const rows = rosterRows();
+    const seated = {};
+    seatOrder.forEach((k) => { const r = rows.find((x) => keyOf(x) === k); if (r) seated[r.name] = true; });
+    const cand = [];
+    info.rules.forEach((r) => {
+      if (!r.portable && r.biome !== home) return;        // the dice forbid it at this table
+      if (seen & (1 << r.id)) return;                     // already played: the nudge is spent
+      const o = ruleOwner(r);
+      cand.push({ r: r, owner: o ? o.name : null, seated: !!(o && seated[o.name]) });
+    });
+    if (!cand.length) return null;                        // every rule here has been tried
+    // A rule whose own rival is at the table first - it plays as that seat's
+    // move rather than as a setting - but never a REQUIREMENT: no proposal at
+    // all is the one outcome this feature exists to prevent.
+    cand.sort((a, b) => (b.seated - a.seated) || (a.r.id - b.r.id));
+    return { picks: cand.slice(0, HOUSE_PICKS) };
+  }
+  // One sentence however many picks there are: the reason is the same for all
+  // of them, and saying it once per rule reads like a form letter.
+  function houseSentence(picks) {
+    const who = (c) => (c.seated ? c.owner : "The house");
+    const head = who(picks[0]) + " is dealing in " + picks[0].r.name + " tonight";
+    const rest = picks.slice(1).map((c) => who(c) + " in " + c.r.name).join(", ");
+    return head + (rest ? ", " + rest : "") + " - nobody has played "
+         + (picks.length > 1 ? "either" : "it") + " at this table yet.";
+  }
+  // repropose = a new night (a format change, a fresh sit-down): the house gets
+  // its say back. Otherwise a proposal only lands on a table you have not
+  // hand-picked, so re-seating re-picks but your own ticks are never overwritten.
+  function applyHouse(repropose) {
+    if (repropose) houseTouched = false;
+    if (houseTouched) return;
+    const line = $("houseLine");
+    const boxes = Array.prototype.slice.call(document.querySelectorAll("#rules input"));
+    if (!boxes.length) return;
+    boxes.forEach((b) => { if (!b.disabled) b.checked = false; });
+    const p = houseProposal();
+    if (!p) { line.hidden = true; line.textContent = ""; rulesSummary(); return; }
+    const on = {};
+    p.picks.forEach((c) => { on[c.r.id] = true; });
+    boxes.forEach((b) => { if (on[b.value] && !b.disabled) b.checked = true; });
+    line.textContent = "House rules tonight: " + houseSentence(p.picks) + " Untick anything you would rather not play.";
+    line.hidden = false;
+    $("houseRules").open = true;                          // a proposal inside a shut drawer is no proposal
+    rulesSummary();
+  }
+
   function renderRules() {
     const box = $("rules"); box.innerHTML = "";
     helpOpen = null; $("ruleHelp").hidden = true;
@@ -216,7 +295,7 @@
       const l = document.createElement("label");
       l.title = RULE_HELP[r.name] || "";
       const c = document.createElement("input"); c.type = "checkbox"; c.value = r.id; c.checked = false;   // the bare table: every difficulty number was measured at mask 0
-      c.addEventListener("change", rulesSummary);
+      c.addEventListener("change", () => { houseTouched = true; rulesSummary(); });
       l.appendChild(c); l.appendChild(document.createTextNode(" " + r.name + " "));
       // The only biome that survives on the web is the table's dice economy, so
       // the only tag is the one that gates on it: the two rules that cannot port.
@@ -228,6 +307,7 @@
       box.appendChild(l);
     });
     rulesSummary();
+    applyHouse(true);
   }
   function rulesSummary() {
     const on = Array.from(document.querySelectorAll("#rules input:checked")).map((c) => info.rules[c.value].name);
@@ -458,6 +538,15 @@
       case "MatchEnd":
         game.over = true; game.turn = -1; game.winner = ev.seat;
         log("Match over after " + ev.count + " hands: " + seatName(ev.seat) + " is the last cup standing.");
+        wait = 0;
+        break;
+      case "Read":
+        // The table learned something this hand: keep it and say so at once.
+        // The match-end Estimate still lands and is still what closes the
+        // night out - this only stops the header claiming it has never met a
+        // player it has already read.
+        save(STORE.est, { ct: ev.ct, bc: ev.bc, br: ev.br, n: ev.n });
+        renderRead();
         wait = 0;
         break;
       case "Estimate":
@@ -729,6 +818,12 @@
     let streak = load(STORE.record + ".streak", 0);
     streak = winner === 0 ? (streak > 0 ? streak + 1 : 1) : (streak < 0 ? streak - 1 : -1);
     save(STORE.record + ".streak", streak);
+    // Nights played gates the house's first proposal; the seen mask is what
+    // keeps it from re-teaching a rule you have already sat through.
+    save(STORE.nights, load(STORE.nights, 0) + 1);
+    let seen = load(STORE.seen, 0);
+    (game.houseIds || []).forEach((id) => { seen |= (1 << id); });
+    save(STORE.seen, seen);
     if (game.iou) {
       const mk = load(STORE.markers, markersDefault());
       for (let s = 0; s < game.n; s++) if (game.markers[s] >= 0) mk[game.names[s]] = game.markers[s];
@@ -750,6 +845,7 @@
     const names = ["You"].concat(seatsRows.map((r) => r.name));
     const n = names.length;
     const rules = rulesConfig();
+    const houseIds = Array.prototype.slice.call(document.querySelectorAll("#rules input:checked")).map((c) => parseInt(c.value, 10));
     const skill = $("skillRoster").checked ? -1 : parseFloat($("skill").value);
     let seed = parseInt($("seed").value, 10);
     if (!(seed > 0)) seed = (Math.random() * 0x7fffffff) | 0;
@@ -769,7 +865,7 @@
     game = { n, names, dudo, iou, dice: new Array(n).fill(dudo ? 5 : 0), alive: new Array(n).fill(true), last: new Array(n).fill(""),
              tol: [info.player.tolerance].concat(seatsRows.map((r) => r.tolerance)), markers,
              standing: null, bidder: -1, turn: -1, hand: 0, over: false, view: null, pick: null, stake: 1, phase: "idle",
-             shown: null, drain: null, hit: null, holdAge: 0,
+             shown: null, drain: null, hit: null, holdAge: 0, houseIds: houseIds,
              rules: { chain: !dudo && !!(rules.mask & (1 << 1)), calza: !!(rules.mask & (1 << 7)), oot: !!(rules.mask & (1 << 8)), ck: rules.ck === 1 },
              log: ["# Liar's Dice " + (dudo ? "ship" : "bar") + " table, seed " + seed + ", build " + $("build").textContent,
                    "# cfg " + cfg, "# seats " + names.join(", ")] };
@@ -838,8 +934,10 @@
     const showPace = () => { $("pacev").textContent = pace.toFixed(1) + " s a beat"; };
     showPace();
     $("pace").addEventListener("input", () => { pace = parseFloat($("pace").value); save(STORE.pace, pace); showPace(); });
-    $("again").addEventListener("click", () => { $("table").hidden = true; $("setup").hidden = false; renderRivals(); });
-    $("forget").addEventListener("click", (e) => { e.preventDefault(); localStorage.removeItem(STORE.est); localStorage.removeItem(STORE.record); localStorage.removeItem(STORE.record + ".streak"); renderRead(); renderRecord(); });
+    $("again").addEventListener("click", () => { $("table").hidden = true; $("setup").hidden = false; renderRivals(); applyHouse(true); });
+    $("forget").addEventListener("click", (e) => { e.preventDefault(); localStorage.removeItem(STORE.est); localStorage.removeItem(STORE.record); localStorage.removeItem(STORE.record + ".streak");
+      localStorage.removeItem(STORE.seen); localStorage.removeItem(STORE.nights);
+      renderRead(); renderRecord(); applyHouse(true); });
     $("resetMarkers").addEventListener("click", (e) => {
       e.preventDefault(); localStorage.removeItem(STORE.markers);
       const d = markersDefault();

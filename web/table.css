@@ -162,6 +162,9 @@ button.big { padding: 8px 18px; font-weight: 600; }
 .seating .arrow { color: var(--muted); }
 .picks .why { padding: 0 6px; font-size: 0.8rem; line-height: 1.2; margin-left: 2px; }
 .picks .why.on { border-color: var(--felt); box-shadow: 0 0 0 1px var(--felt) inset; }
+/* The house's pick for tonight. It sits OUTSIDE the rules drawer on purpose:
+   a proposal folded into a shut <details> is a proposal nobody reads. */
+.houseline { margin: 0 0 10px; padding: 8px 10px; border-left: 3px solid var(--accent); background: rgba(127,127,127,0.08); font-size: 0.95rem; }
 .rulehelp { margin: 6px 0 0; padding: 8px 10px; border-left: 3px solid var(--felt); background: rgba(127,127,127,0.08); font-size: 0.95rem; }
 .rulehelp b { color: var(--felt); }
 .panel.flash { animation: flash 1.6s ease-out; }
@@ -207,7 +210,7 @@ button.big { padding: 8px 18px; font-weight: 600; }
   border-color: color-mix(in srgb, var(--onfelt) 34%, transparent);
   box-shadow: var(--card-shadow), inset 0 1px 0 color-mix(in srgb, var(--onfelt) 30%, transparent);
 }
-.glass .log, .glass .rulehelp { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.glass .log, .glass .rulehelp, .glass .houseline { background: color-mix(in srgb, var(--ink) 8%, transparent); }
 .glass .abtag {
   font-size: .8rem; border: 1px solid var(--onfelt-dim); border-radius: 4px;
   padding: 0 5px; margin-left: 4px; white-space: nowrap;

@@ -52,11 +52,12 @@
       <label><input type="checkbox" id="skillRoster" checked> each rival's own skill</label>
       <label class="gap">or all at <input type="range" id="skill" min="0" max="1" step="0.05" value="0.5" disabled> <span id="skillv">0.50</span></label>
     </div>
-    <details class="row">
+    <p id="houseLine" class="houseline" hidden></p>
+    <details class="row" id="houseRules">
       <summary>House rules <span id="rulesSummary" class="hint"></span></summary>
       <div id="rules" class="picks"></div>
       <p id="ruleHelp" class="rulehelp" hidden></p>
-      <p class="hint">Every rule opens off: the bare table is the one every difficulty number was measured on. Tick them one at a time; any rule plays at either table except the two the dice forbid (? explains each).</p>
+      <p class="hint">Your first sit-down is the bare table: every rule opens off, which is the table every difficulty number was measured on. After that the house deals in a couple of the rules nobody here has tried yet, so they get played rather than skipped - untick anything, and it stops picking for the visit. Any rule plays at either table except the two the dice forbid (? explains each).</p>
     </details>
     <div class="row">
       <label>Seed <input type="text" id="seed" size="10" placeholder="random"></label>
