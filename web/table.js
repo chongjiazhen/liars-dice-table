@@ -98,6 +98,17 @@
   }
   function bidHtml(b) { const m = modeTag(b); return "<b>" + b.qty + "</b> × " + die(b.face) + (m ? " <span class='lit' title='" + m.title + "'>" + m.t + "</span>" : ""); }
   function bidText(b) { const m = modeTag(b); return b.qty + " × " + b.face + (m ? " " + m.t : ""); }
+  // One sweep link, from the defender's side. `held` is the engine's word for
+  // "this bid survived", so a held link means the CHAINER pays it; a conceded
+  // link is the chainer withdrawing before the cups, which also reads held.
+  // Stake is named only when it was doubled - stake 1 is the ordinary link.
+  function linkOutcome(L, seat) {
+    const who = seatName(seat);
+    const at = L.stake > 1 ? " at " + L.stake + "x" : "";
+    if (L.status === "ChainerConceded") return "conceded to " + who + at;
+    if (L.status === "DefFolded") return who + (seat === 0 ? " fold" : " folds") + at;
+    return (L.held ? "holds" : "falls") + at;
+  }
 
   // ---- storage ---------------------------------------------------------------
   function load(key, dflt) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : dflt; } catch (e) { return dflt; } }
@@ -486,27 +497,49 @@
         // pulse once the last line has landed; the CSS reads both moments off
         // these properties. ?fast=1 withholds .play, so drive.js sees the
         // finished reveal on the first frame.
-        const mark = bidHits(ev.hands, ev.bid), marking = mark.n === ev.count;
+        // A sweep settles one link per defender, each on that defender's OWN
+        // bid, so there is no single bid to mark every cup against and no
+        // single count to print. Each link marks its own row; the chainer's
+        // standing bid marks nobody, because it is not what those seats lost on.
+        const links = ev.sweep && ev.links && ev.links.length ? ev.links : null;
+        const linkOf = {};
+        if (links) links.forEach((L) => { linkOf[L.seat] = L; });
+        const mark = bidHits(ev.hands, ev.bid), marking = !links && mark.n === ev.count;
         const stagger = FAST ? 0 : Math.round(REVEAL_STAGGER * pace);
         let lines = 0;
         const cups = ev.hands.map((h, s) => {
           if (!h.length) return "";
           const at = lines * stagger; lines += 1;
+          const L = linkOf[s];
+          const rowMark = L ? bidHits([h], L.bid) : null;
+          const note = L
+            ? " <span class='linkbid'>on " + bidHtml(L.bid) + " · " + linkOutcome(L, s) + "</span>"
+            : "";
           return "<div class='cupline' style='--rv-delay:" + at + "ms'><span class='who'>" + seatName(s) + "</span> <span class='cup'>"
-               + h.map((d) => die(d, marking && mark.hit(d) ? "hit" : "")).join("") + "</span></div>";
+               + h.map((d) => die(d, (rowMark ? rowMark.hit(d) : marking && mark.hit(d)) ? "hit" : "")).join("") + "</span>" + note + "</div>";
         }).join("");
         box.className = "reveal" + (FAST ? "" : " play");
         box.style.setProperty("--rv-pulse", (lines * stagger) + "ms");
         const exact = game.calza !== undefined;
+        // The header states what it can. On a sweep that is the run's size, not
+        // a bid and a tally: printing the chainer's standing bid beside one
+        // count reads as a single settlement that never happened.
+        const head = links
+          ? seatName(ev.seat) + (ev.seat === 0 ? " sweep " : " sweeps ") + links.length + " links."
+          : bidHtml(ev.bid) + stakeText(game.stake) + " · <b class='tally'>" + ev.count + "</b> on the table.";
         const verdict = exact
           ? (game.calza ? seatName(ev.seat) + " called it exactly right." : seatName(ev.seat) + " called exact and missed.")
-          : ev.sweep ? "Sweep resolved. Each lost link pays separately."
+          : links ? "Each link settles on its own bid."
           : seatName(ev.seat) + " loses the hand.";
-        box.innerHTML = "<div class='verdict'>" + bidHtml(ev.bid) + stakeText(game.stake) + " · <b class='tally'>" + ev.count + "</b> on the table. " + verdict + "</div><div class='cups'>" + cups + "</div>" +
+        box.innerHTML = "<div class='verdict'>" + head + " " + verdict + "</div><div class='cups'>" + cups + "</div>" +
                         (FAST ? "" : "<button id='continue' class='primary'>Continue</button>");
         delete game.calza;
-        log("  reveal" + stakeText(game.stake) + ": " + ev.count + " × " + ev.bid.face + " on the table; " +
-            (ev.sweep ? "sweep links settle separately" : seatName(ev.seat) + (exact ? " called exact" : " loses")));
+        log("  reveal" + stakeText(game.stake) + ": " +
+            (links
+              ? seatName(ev.seat) + (ev.seat === 0 ? " sweep " : " sweeps ") + links.length + " links - " +
+                links.map((L) => seatName(L.seat) + " on " + bidText(L.bid) + " (" + linkOutcome(L, L.seat) + ")").join("; ")
+              : ev.count + " × " + ev.bid.face + " on the table; " +
+                seatName(ev.seat) + (exact ? " called exact" : " loses")));
         if (!FAST) { wait = -1; $("continue").addEventListener("click", () => { $("continue").disabled = true; const c = onContinue; onContinue = null; if (c) c(); }); }
         break;
       }
