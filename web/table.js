@@ -44,6 +44,7 @@
   let game = null;     // the live match's state
   let pending = null;  // the resolve of the decision the page owes the engine
   let view = null;     // the decision view waiting to be shown
+  let directionView = null;
   let duelView = null; // a duel rung waiting to be shown
   let calzaView = null; // a call beat waiting to be shown
   let calzaTimer = null;
@@ -499,11 +500,13 @@
         const exact = game.calza !== undefined;
         const verdict = exact
           ? (game.calza ? seatName(ev.seat) + " called it exactly right." : seatName(ev.seat) + " called exact and missed.")
+          : ev.sweep ? "Sweep resolved. Each lost link pays separately."
           : seatName(ev.seat) + " loses the hand.";
         box.innerHTML = "<div class='verdict'>" + bidHtml(ev.bid) + stakeText(game.stake) + " · <b class='tally'>" + ev.count + "</b> on the table. " + verdict + "</div><div class='cups'>" + cups + "</div>" +
                         (FAST ? "" : "<button id='continue' class='primary'>Continue</button>");
         delete game.calza;
-        log("  reveal" + stakeText(game.stake) + ": " + ev.count + " × " + ev.bid.face + " on the table; " + seatName(ev.seat) + (exact ? " called exact" : " loses"));
+        log("  reveal" + stakeText(game.stake) + ": " + ev.count + " × " + ev.bid.face + " on the table; " +
+            (ev.sweep ? "sweep links settle separately" : seatName(ev.seat) + (exact ? " called exact" : " loses")));
         if (!FAST) { wait = -1; $("continue").addEventListener("click", () => { $("continue").disabled = true; const c = onContinue; onContinue = null; if (c) c(); }); }
         break;
       }
@@ -562,7 +565,7 @@
   function onEvent(ev) { queue.push(ev); drain(); }
   function drain() {
     if (draining) return;
-    if (!queue.length) { showCalza(); showDuel(); showTurn(); return; }
+    if (!queue.length) { showDirection(); showCalza(); showDuel(); showTurn(); return; }
     draining = true;
     const wait = apply(queue.shift());
     const next = () => { draining = false; drain(); };
@@ -575,6 +578,19 @@
   function decide(v) {
     view = v;
     return new Promise((resolve) => { pending = resolve; drain(); });
+  }
+  function direction(v) {
+    directionView = v;
+    return new Promise((resolve) => { pending = resolve; drain(); });
+  }
+  function showDirection() {
+    if (!directionView || !pending) return;
+    const v = directionView; directionView = null;
+    game.turn = v.seat;
+    renderSeats();
+    setPhase("direction");
+    $("dirCW").textContent = "Clockwise: " + seatName(v.cwNext) + " next";
+    $("dirCCW").textContent = "Counterclockwise: " + seatName(v.ccwNext) + " next";
   }
   // ---- the call beat -------------------------------------------------------------
   // The device gives the player the AI's think-pause to call exact or to
@@ -674,6 +690,8 @@
   // only ("no standing bid to call"). Lowercase, no full stop, either way.
   function setPhase(p) {
     game.phase = p;
+    $("direction").hidden = p !== "direction";
+    $("direction").classList.toggle("on", p === "direction");
     $("turn").classList.toggle("on", p === "turn" || p === "window");
     $("duel").classList.toggle("on", p === "duel");
     const off = (ids, why) => ids.forEach((id) => { const e = $(id); e.disabled = true; e.title = why; });
@@ -713,7 +731,8 @@
       for (let f = 1; f <= 6; f++) {
         // Ones are always 斋: their cell sits in the 斋 row (the ship's single row holds the aces).
         const m = f === 1 ? 1 : mode;
-        const b = (f === 1 && !game.dudo && mode === 0) ? null : cheapest.get(f + ":" + m);
+        const b = game.dudo ? (cheapest.get(f + ":0") || cheapest.get(f + ":1"))
+          : ((f === 1 && mode === 0) ? null : cheapest.get(f + ":" + m));
         const btn = document.createElement("button"); btn.className = "cell";
         if (b) {
           btn.innerHTML = "<b>" + b.qty + "</b> × " + die(b.face);
@@ -732,7 +751,8 @@
     // The stepper opens where the device seats its builder: on a raise, the
     // cheapest legal one (it carries the round's mode); on an open, face 2 at
     // the 飞 floor. Ones and the ship force their own mode either way.
-    game.pick = (v.standing && v.menu.length) ? { qty: v.menu[0].qty, face: v.menu[0].face, mode: v.menu[0].mode } : { qty: 1, face: 2, mode: 0 };
+    const start = v.standing ? v.menu[0] : v.menu.find((b) => b.face === 2);
+    game.pick = start ? { qty: start.qty, face: start.face, mode: start.mode } : { qty: 1, face: 2, mode: 0 };
     snapQty();
     renderStepper();
     $("challenge").disabled = !v.standing; $("challenge").title = v.standing ? "cups up on the standing bid" : "no standing bid to call";
@@ -756,10 +776,16 @@
   function openLine(menu) {
     const min = (pred) => menu.filter(pred).reduce((m, b) => Math.min(m, b.qty), Infinity);
     const any = min((b) => b.face !== 1), ones = min((b) => b.face === 1);
+    if (game.dudo && menu.length && menu.every((b) => b.mode === 1))
+      return "Palifico: every face counts literally. You may open with ones.";
     if (game.dudo) return "You open: any face but ones, from " + any + ". Ones are wild.";
     return "You open: " + any + " or more of a face (飞, ones wild), or " + ones + " or more ones (斋, ones count as ones).";
   }
-  function pickMode(p) { return p.face === 1 ? 1 : (game.dudo ? 0 : p.mode); }   // ones are always 斋; the ship is always 飞
+  function pickMode(p) {
+    if (p.face === 1) return 1;
+    const legal = game.dudo && game.view.menu.find((b) => b.face === p.face);
+    return legal ? legal.mode : p.mode;
+  }
   function legalIndex(p) { const m = pickMode(p); return game.view.menu.findIndex((b) => b.qty === p.qty && b.face === p.face && b.mode === m); }
   // Snap the quantity up to the cheapest legal raise on this face in this mode.
   function snapQty() {
@@ -860,13 +886,13 @@
       const coll = names.map((h) => (h === "Sol" || h === "Lark") ? 1 : 0);
       cfg += ";iou=1;years=" + markers.join(",") + ";coll=" + coll.join(",");
     }
-    queue = []; draining = false; onContinue = null; view = null; duelView = null; calzaView = null; pending = null;
+    queue = []; draining = false; onContinue = null; view = null; directionView = null; duelView = null; calzaView = null; pending = null;
     if (calzaTimer) { clearInterval(calzaTimer); calzaTimer = null; }
     game = { n, names, dudo, iou, dice: new Array(n).fill(dudo ? 5 : 0), alive: new Array(n).fill(true), last: new Array(n).fill(""),
              tol: [info.player.tolerance].concat(seatsRows.map((r) => r.tolerance)), markers,
              standing: null, bidder: -1, turn: -1, hand: 0, over: false, view: null, pick: null, stake: 1, phase: "idle",
              shown: null, drain: null, hit: null, holdAge: 0, houseIds: houseIds,
-             rules: { chain: !dudo && !!(rules.mask & (1 << 1)), calza: !!(rules.mask & (1 << 7)), oot: !!(rules.mask & (1 << 8)), ck: rules.ck === 1 },
+             rules: { chain: !!(rules.mask & (1 << 1)), calza: !!(rules.mask & (1 << 7)), oot: !!(rules.mask & (1 << 8)), ck: rules.ck === 1 },
              log: ["# Liar's Dice " + (dudo ? "ship" : "bar") + " table, seed " + seed + ", build " + $("build").textContent,
                    "# cfg " + cfg, "# seats " + names.join(", ")] };
     $("setup").hidden = true; $("table").hidden = false; $("matchEnd").hidden = true; $("reveal").hidden = true; $("again").hidden = true;
@@ -900,7 +926,7 @@
   }
 
   // ---- boot -------------------------------------------------------------------------
-  window.table = { decide, duel, interrupt, event: onEvent };
+  window.table = { decide, direction, duel, interrupt, event: onEvent };
   fetch("dist/BUILD").then((r) => r.text()).then((t) => { $("build").textContent = t.trim(); }).catch(() => {});
   createTable().then((mod) => {
     M = mod;
@@ -913,6 +939,8 @@
     $("play").addEventListener("click", play);
     $("bidTyped").addEventListener("click", answerTyped);
     $("qty").addEventListener("input", () => { const q = parseInt($("qty").value, 10); if (q > 0) { game.pick.qty = q; renderStepper(); } });
+    $("dirCW").addEventListener("click", () => answer(0));
+    $("dirCCW").addEventListener("click", () => answer(1));
     $("qty").addEventListener("keydown", (e) => { if (e.key === "Enter") answerTyped(); });
     $("qtyUp").addEventListener("click", () => { game.pick.qty++; renderStepper(); });
     $("modeBtn").addEventListener("click", () => { game.pick.mode = game.pick.mode === 1 ? 0 : 1; snapQty(); renderStepper(); });
