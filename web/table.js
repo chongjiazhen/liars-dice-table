@@ -148,10 +148,27 @@
   function isIou() { return $("iou").checked && format() === "dudo"; }
   // A fresh seating: the format's own cast, three of them (the measured
   // four-seat table). IOU mode seats the crew and the house first, always.
+  //
+  // In the bar the three are a random ordered draw from the six (6P3), not the
+  // first three: most testers never touch the checkboxes, and a fixed default
+  // means five of the cast and their rules are never seen. The ship's crew is
+  // exactly three, so there is nothing to draw there - it stays the roster
+  // order, which IOU mode depends on anyway.
+  function shuffled(a) {
+    const out = a.slice();
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const t = out[i]; out[i] = out[j]; out[j] = t;
+    }
+    return out;
+  }
   function renderRivals(fresh) {
     const rows = rosterRows();
     const home = format() === "dudo" ? 0 : 1;
-    if (fresh) seatOrder = rows.filter((r) => r.rid === home).slice(0, 3).map(keyOf);
+    if (fresh) {
+      const cast = rows.filter((r) => r.rid === home).map(keyOf);
+      seatOrder = (home === 1 ? shuffled(cast) : cast).slice(0, 3);
+    }
     if (isIou()) {
       const crew = rows.filter((r) => r.rid === 0).map(keyOf);
       seatOrder = crew.concat(seatOrder.filter((k) => crew.indexOf(k) < 0)).slice(0, MAX_RIVALS);
