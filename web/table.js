@@ -162,13 +162,21 @@
     }
     return out;
   }
-  // Three words of manner per seat, keyed by public handle. Distilled from the
-  // roster's own character notes; skill and lives are what the numbers say,
-  // this is what a player would say after a night with them.
-  const STYLE = {
-    Rook: "trusting, folds under pressure", Bram: "flirts, then pulls the trigger", Yael: "reads you cold, calls thin",
-    Kade: "bluffs thin all night", Wren: "honest, hits back hard", Nell: "sharp, learns you fast",
-    Sol: "tight, quick to call a lie", Lark: "bold calls, no lies", Cove: "patient, cannot be bluffed",
+  // One line per seat, keyed by public handle: who they are at the table, so a
+  // stranger can pick between nine names. Written from the roster's character
+  // notes and the dials behind them (bluff rate, challenge threshold, piety),
+  // never from a house rule - the browser proposes those at random, so a rule
+  // is not a thing any seat can be introduced by.
+  const INTRO = {
+    Rook: "The new hire. Believes your bid, folds to stay in, and does not hold his drink.",
+    Bram: "All charm until a bid she does not like. Then she pulls the trigger.",
+    Yael: "Says little, bids straight, and calls a thin bid the moment it lands.",
+    Kade: "Bids numbers she does not have, all night, and dares you to check.",
+    Wren: "Floor manager. Bids what he holds; push him and he pushes back harder.",
+    Nell: "Runs the place. Remembers every bluff you have made and prices the next one.",
+    Sol: "Old sailor. Tight bids, no lies, and quick to call yours.",
+    Lark: "Eager and honest: bold calls, never a lie, and a soft spot for a gamble.",
+    Cove: "The house. Waits, reads, and does not fall for it.",
   };
   function renderRivals(fresh) {
     const rows = rosterRows();
@@ -192,15 +200,14 @@
         else seatOrder = seatOrder.filter((k) => k !== key);
         renderSeating();
       });
-      l.appendChild(c); l.appendChild(document.createTextNode(" " + r.name));
-      // What a stranger can choose on: the lives the seat sits down with (the
-      // one number they will see in play) and a few words of table manner.
-      // The house-rule each seat deals is left out: the browser has no teaching
-      // beat, so the rules are proposed at random and a "deals in X" line here
-      // would promise something the table never does.
-      const b = document.createElement("span"); b.className = "blurb";
-      b.textContent = (format() === "dudo" ? "" : r.tolerance + " lives · ") + (STYLE[r.name] || "");
-      l.appendChild(b);
+      // A row is a grid: box | name | lives | intro, so nine rows line up. Lives
+      // are the one number a player sees in play (bar only; the ship's cups are
+      // five dice each); the intro is what makes the name a person.
+      l.appendChild(c);
+      const nm = document.createElement("span"); nm.className = "name"; nm.textContent = r.name; l.appendChild(nm);
+      const lv = document.createElement("span"); lv.className = "lives";
+      lv.textContent = format() === "dudo" ? "" : r.tolerance + " lives"; l.appendChild(lv);
+      const b = document.createElement("span"); b.className = "blurb"; b.textContent = INTRO[r.name] || ""; l.appendChild(b);
       box.appendChild(l);   // no home-table tag: the log's cfg line carries the roster id for the reader who needs it
     });
     renderSeating();

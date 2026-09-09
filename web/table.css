@@ -42,7 +42,11 @@ h2 .pace { float: right; font-weight: normal; }
 .hint { color: var(--muted); font-size: 0.9rem; }
 .picks { display: flex; flex-wrap: wrap; gap: 6px 12px; }
 .picks label { white-space: nowrap; }
-#pickRivals .picks { margin-top: 6px; }
+/* The rival picker: one seat per row, columns aligned - box, name, lives, intro. */
+#rivals { display: grid; grid-template-columns: 1fr; gap: 3px 0; margin-top: 6px; }
+#rivals label { display: grid; grid-template-columns: 1.6em 4.5em 4.5em 1fr; align-items: baseline; white-space: normal; }
+#rivals .name { font-weight: 600; }
+#rivals .lives { font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 button { font: inherit; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--ink); cursor: pointer; }
 button.primary { background: var(--felt); color: #fff; border-color: var(--felt); }
 button.danger { border-color: var(--accent); color: var(--accent); }
@@ -166,7 +170,7 @@ button.big { padding: 8px 18px; font-weight: 600; }
 .seating .chair.you { border-color: var(--felt); font-weight: 600; padding-right: 8px; }
 .seating .chair button { padding: 0 5px; font-size: 0.8rem; line-height: 1.4; border: none; }
 .seating .arrow { color: var(--muted); }
-.picks .blurb { display: block; white-space: normal; margin-left: 22px; font-size: 0.8rem; line-height: 1.2; color: var(--muted); }
+#rivals .blurb { font-size: 0.85rem; line-height: 1.25; color: var(--muted); }
 .picks .why { padding: 0 6px; font-size: 0.8rem; line-height: 1.2; margin-left: 2px; }
 .picks .why.on { border-color: var(--felt); box-shadow: 0 0 0 1px var(--felt) inset; }
 /* The house's pick for tonight. It sits OUTSIDE the rules drawer on purpose:
@@ -183,6 +187,9 @@ button.big { padding: 8px 18px; font-weight: 600; }
    two rows deep, with taller cells for a thumb. Nothing is hidden or reordered
    - the same cells, wrapped. */
 @media (max-width: 620px) {
+  #rivals label { grid-template-columns: 1.6em 4.5em 1fr; }
+  #rivals .blurb { grid-column: 2 / -1; }
+
   #app { padding: 10px; }
   h1 { font-size: 1.45rem; }
   h2 .pace { float: none; display: block; margin-top: 4px; }
