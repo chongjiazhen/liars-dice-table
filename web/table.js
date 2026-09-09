@@ -162,21 +162,21 @@
     }
     return out;
   }
-  // One line per seat, keyed by public handle: who they are at the table, so a
-  // stranger can pick between nine names. Written from the roster's character
-  // notes and the dials behind them (bluff rate, challenge threshold, piety),
-  // never from a house rule - the browser proposes those at random, so a rule
-  // is not a thing any seat can be introduced by.
-  const INTRO = {
-    Rook: "The new hire. Believes your bid, folds to stay in, and does not hold his drink.",
-    Bram: "All charm until a bid she does not like. Then she pulls the trigger.",
-    Yael: "Says little, bids straight, and calls a thin bid the moment it lands.",
-    Kade: "Bids numbers she does not have, all night, and dares you to check.",
-    Wren: "Floor manager. Bids what he holds; push him and he pushes back harder.",
-    Nell: "Runs the place. Remembers every bluff you have made and prices the next one.",
-    Sol: "Old sailor. Tight bids, no lies, and quick to call yours.",
-    Lark: "Eager and honest: bold calls, never a lie, and a soft spot for a gamble.",
-    Cove: "The house. Waits, reads, and does not fall for it.",
+  // One playstyle line per seat, keyed by public handle, and nothing else: no
+  // lore, no house rule. This is the engine's test table, so each line states
+  // the dials a player can feel across a few hands - how often the seat bluffs,
+  // how readily it challenges, whether it adapts to you, and how well it reads.
+  // Written from the roster's bluff rate, challenge threshold, piety and skill.
+  const STYLE = {
+    Rook: "Rarely bluffs, rarely challenges; folds rather than risk a life.",
+    Bram: "Bluffs about half its bids and challenges early.",
+    Yael: "Honest bids, fast to challenge a thin one; reads your pattern.",
+    Kade: "Bluffs more than anyone, on thin bids; adapts as you play.",
+    Wren: "Honest bids; challenges only what it can back with dice.",
+    Nell: "Strongest all-round; adapts to your habits fastest.",
+    Sol: "Disciplined bids, honest, quick to call a lie.",
+    Lark: "Loose bids, eager challenges, never a bluff.",
+    Cove: "Perfect reads, never fooled; waits for an overreach and calls it.",
   };
   function renderRivals(fresh) {
     const rows = rosterRows();
@@ -200,14 +200,16 @@
         else seatOrder = seatOrder.filter((k) => k !== key);
         renderSeating();
       });
-      // A row is a grid: box | name | lives | intro, so nine rows line up. Lives
-      // are the one number a player sees in play (bar only; the ship's cups are
-      // five dice each); the intro is what makes the name a person.
+      // A row is a grid: box | name | lives | playstyle, so nine rows line up.
+      // Lives are the one number a player sees in play (bar only; the ship's
+      // cups are five dice each). The house rule each seat deals is left out:
+      // the browser has no teaching beat, so rules are proposed at random and
+      // a "deals in X" line here would promise something the table never does.
       l.appendChild(c);
       const nm = document.createElement("span"); nm.className = "name"; nm.textContent = r.name; l.appendChild(nm);
       const lv = document.createElement("span"); lv.className = "lives";
       lv.textContent = format() === "dudo" ? "" : r.tolerance + " lives"; l.appendChild(lv);
-      const b = document.createElement("span"); b.className = "blurb"; b.textContent = INTRO[r.name] || ""; l.appendChild(b);
+      const b = document.createElement("span"); b.className = "blurb"; b.textContent = STYLE[r.name] || ""; l.appendChild(b);
       box.appendChild(l);   // no home-table tag: the log's cfg line carries the roster id for the reader who needs it
     });
     renderSeating();
