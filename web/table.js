@@ -41,6 +41,7 @@
 
   let M = null;        // the wasm module
   let info = null;     // table_info()
+  let seatHeld = null; // the chair a tap is holding for a swap (roster key), or null
   let game = null;     // the live match's state
   let pending = null;  // the resolve of the decision the page owes the engine
   let view = null;     // the decision view waiting to be shown
@@ -230,22 +231,35 @@
     const isCrew = (k) => isIou() && k.startsWith("0:");
     document.querySelectorAll("#rivals input").forEach((b) => { b.disabled = isCrew(b.value) || (!b.checked && full); });
     const box = $("seating"); box.innerHTML = "";
-    // Your own lives sit here, next to the rivals' counts in the picker above:
-    // nothing else on the setup page says what you start the bar with.
+    // Every chair carries its lives (bar only; the ship's cups are five dice
+    // each), so the row is the one place all the seats' counts sit side by
+    // side before the deal. Nothing else on the page says what you start with.
+    const livesOf = (t) => { if (format() === "dudo") return null; const lv = document.createElement("span"); lv.className = "lives"; lv.textContent = t + " lives"; return lv; };
     const you = document.createElement("span"); you.className = "chair you"; you.textContent = "You"; box.appendChild(you);
-    if (format() !== "dudo") { const lv = document.createElement("span"); lv.className = "lives"; lv.textContent = info.player.tolerance + " lives"; you.appendChild(lv); }
+    const yl = livesOf(info.player.tolerance); if (yl) you.appendChild(yl);
     const mk = (t, title, on) => { const b = document.createElement("button"); b.type = "button"; b.textContent = t; b.title = title; b.addEventListener("click", on); return b; };
+    // Reorder by tap-to-swap: tap a chair, it holds; tap another, they change
+    // places. Two taps beat a drag on a phone, where a drag across a row this
+    // narrow scrolls the page as often as it moves a chair. In IOU mode the
+    // crew keeps the first chairs (the engine sorts them there anyway), so a
+    // crew chair only swaps with a crew chair.
+    if (seatHeld !== null && seatOrder.indexOf(seatHeld) < 0) seatHeld = null;
     seatOrder.forEach((key, i) => {
       const r = rows.find((x) => keyOf(x) === key);
-      const arrow = document.createElement("span"); arrow.className = "arrow"; arrow.textContent = "\u2192"; box.appendChild(arrow);
-      const ch = document.createElement("span"); ch.className = "chair";
-      ch.appendChild(document.createTextNode(r.name + " "));
-      const swap = (j) => { const k = seatOrder[i]; seatOrder[i] = seatOrder[j]; seatOrder[j] = k; renderSeating(); };
-      // In IOU mode the crew keeps the first chairs (the engine sorts them there anyway).
-      const left = mk("\u25c0", "earlier in the turn order", () => swap(i - 1)); left.disabled = i === 0 || (isCrew(key) !== isCrew(seatOrder[i - 1]));
-      const right = mk("\u25b6", "later in the turn order", () => swap(i + 1)); right.disabled = i === seatOrder.length - 1 || (isCrew(key) !== isCrew(seatOrder[i + 1]));
-      ch.appendChild(left); ch.appendChild(right);
-      if (!isCrew(key)) ch.appendChild(mk("\u00d7", "stand up", () => { seatOrder = seatOrder.filter((k) => k !== key); document.querySelector("#rivals input[value='" + key + "']").checked = false; renderSeating(); }));
+      const arrow = document.createElement("span"); arrow.className = "arrow"; arrow.textContent = "→"; box.appendChild(arrow);
+      const ch = document.createElement("span"); ch.className = "chair" + (seatHeld === key ? " held" : "");
+      const nm = document.createElement("button"); nm.type = "button"; nm.className = "name"; nm.textContent = r.name;
+      nm.title = seatHeld === null ? "tap, then tap another chair to swap" : (seatHeld === key ? "let go" : "swap with " + rows.find((x) => keyOf(x) === seatHeld).name);
+      nm.setAttribute("aria-pressed", String(seatHeld === key));
+      nm.addEventListener("click", () => {
+        if (seatHeld === null || seatHeld === key) { seatHeld = seatHeld === key ? null : key; renderSeating(); return; }
+        const j = seatOrder.indexOf(seatHeld);
+        if (j >= 0 && isCrew(key) === isCrew(seatHeld)) { seatOrder[j] = key; seatOrder[i] = seatHeld; }
+        seatHeld = null; renderSeating();
+      });
+      ch.appendChild(nm);
+      const rl = livesOf(r.tolerance); if (rl) ch.appendChild(rl);
+      if (!isCrew(key)) ch.appendChild(mk("×", "stand up", () => { seatOrder = seatOrder.filter((k) => k !== key); if (seatHeld === key) seatHeld = null; document.querySelector("#rivals input[value='" + key + "']").checked = false; renderSeating(); }));
       box.appendChild(ch);
     });
     const n = seatOrder.length;
