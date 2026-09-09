@@ -171,6 +171,11 @@ button.big { padding: 8px 18px; font-weight: 600; }
 .seating .chair button { padding: 0 5px; font-size: 0.8rem; line-height: 1.4; border: none; }
 .seating .arrow { color: var(--muted); }
 #rivals .blurb { font-size: 0.85rem; line-height: 1.25; color: var(--muted); }
+/* Playstyle spoiler: blurred until tapped. Lives are public; the dials are not. */
+#rivals .spoiler { background: none; border: none; padding: 0; margin: 0; font: inherit; font-size: 0.85rem; text-align: left; cursor: pointer; color: var(--muted); filter: blur(5px); user-select: none; transition: filter 0.15s; }
+#rivals .spoiler.open { filter: none; user-select: text; cursor: default; }
+#rivals .spoiler:focus-visible { outline: 2px solid var(--felt); outline-offset: 2px; filter: blur(3px); }
+#rivals .spoiler.open:focus-visible { filter: none; }
 .picks .why { padding: 0 6px; font-size: 0.8rem; line-height: 1.2; margin-left: 2px; }
 .picks .why.on { border-color: var(--felt); box-shadow: 0 0 0 1px var(--felt) inset; }
 /* The house's pick for tonight. It sits OUTSIDE the rules drawer on purpose:

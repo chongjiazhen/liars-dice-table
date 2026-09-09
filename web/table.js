@@ -209,7 +209,15 @@
       const nm = document.createElement("span"); nm.className = "name"; nm.textContent = r.name; l.appendChild(nm);
       const lv = document.createElement("span"); lv.className = "lives";
       lv.textContent = format() === "dudo" ? "" : r.tolerance + " lives"; l.appendChild(lv);
-      const b = document.createElement("span"); b.className = "blurb"; b.textContent = STYLE[r.name] || ""; l.appendChild(b);
+      // The playstyle is a spoiler: lives are public (the seat shows them in
+      // play), the dials are not, and a tester who wants to work a seat out
+      // for themselves should not be told at the picker. A button, not a span,
+      // so a tap reveals the line without toggling the seat's checkbox (a
+      // label ignores clicks that land on an interactive child).
+      const b = document.createElement("button"); b.type = "button"; b.className = "blurb spoiler";
+      b.textContent = STYLE[r.name] || ""; b.title = "reveal playstyle"; b.setAttribute("aria-pressed", "false");
+      b.addEventListener("click", (e) => { e.preventDefault(); const on = !b.classList.contains("open"); b.classList.toggle("open", on); b.setAttribute("aria-pressed", String(on)); b.title = on ? "hide playstyle" : "reveal playstyle"; });
+      l.appendChild(b);
       box.appendChild(l);   // no home-table tag: the log's cfg line carries the roster id for the reader who needs it
     });
     renderSeating();
