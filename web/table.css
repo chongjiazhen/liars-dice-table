@@ -42,6 +42,7 @@ h2 .pace { float: right; font-weight: normal; }
 .hint { color: var(--muted); font-size: 0.9rem; }
 .picks { display: flex; flex-wrap: wrap; gap: 6px 12px; }
 .picks label { white-space: nowrap; }
+#pickRivals .picks { margin-top: 6px; }
 button { font: inherit; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--ink); cursor: pointer; }
 button.primary { background: var(--felt); color: #fff; border-color: var(--felt); }
 button.danger { border-color: var(--accent); color: var(--accent); }
@@ -165,6 +166,7 @@ button.big { padding: 8px 18px; font-weight: 600; }
 .seating .chair.you { border-color: var(--felt); font-weight: 600; padding-right: 8px; }
 .seating .chair button { padding: 0 5px; font-size: 0.8rem; line-height: 1.4; border: none; }
 .seating .arrow { color: var(--muted); }
+.picks .blurb { display: block; white-space: normal; margin-left: 22px; font-size: 0.8rem; line-height: 1.2; color: var(--muted); }
 .picks .why { padding: 0 6px; font-size: 0.8rem; line-height: 1.2; margin-left: 2px; }
 .picks .why.on { border-color: var(--felt); box-shadow: 0 0 0 1px var(--felt) inset; }
 /* The house's pick for tonight. It sits OUTSIDE the rules drawer on purpose:

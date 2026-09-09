@@ -162,6 +162,14 @@
     }
     return out;
   }
+  // Three words of manner per seat, keyed by public handle. Distilled from the
+  // roster's own character notes; skill and lives are what the numbers say,
+  // this is what a player would say after a night with them.
+  const STYLE = {
+    Rook: "trusting, folds under pressure", Bram: "flirts, then pulls the trigger", Yael: "reads you cold, calls thin",
+    Kade: "bluffs thin all night", Wren: "honest, hits back hard", Nell: "sharp, learns you fast",
+    Sol: "tight, quick to call a lie", Lark: "bold calls, no lies", Cove: "patient, cannot be bluffed",
+  };
   function renderRivals(fresh) {
     const rows = rosterRows();
     const home = format() === "dudo" ? 0 : 1;
@@ -185,6 +193,14 @@
         renderSeating();
       });
       l.appendChild(c); l.appendChild(document.createTextNode(" " + r.name));
+      // What a stranger can choose on: the lives the seat sits down with (the
+      // one number they will see in play) and a few words of table manner.
+      // The house-rule each seat deals is left out: the browser has no teaching
+      // beat, so the rules are proposed at random and a "deals in X" line here
+      // would promise something the table never does.
+      const b = document.createElement("span"); b.className = "blurb";
+      b.textContent = (format() === "dudo" ? "" : r.tolerance + " lives · ") + (STYLE[r.name] || "");
+      l.appendChild(b);
       box.appendChild(l);   // no home-table tag: the log's cfg line carries the roster id for the reader who needs it
     });
     renderSeating();
