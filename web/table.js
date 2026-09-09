@@ -230,7 +230,10 @@
     const isCrew = (k) => isIou() && k.startsWith("0:");
     document.querySelectorAll("#rivals input").forEach((b) => { b.disabled = isCrew(b.value) || (!b.checked && full); });
     const box = $("seating"); box.innerHTML = "";
+    // Your own lives sit here, next to the rivals' counts in the picker above:
+    // nothing else on the setup page says what you start the bar with.
     const you = document.createElement("span"); you.className = "chair you"; you.textContent = "You"; box.appendChild(you);
+    if (format() !== "dudo") { const lv = document.createElement("span"); lv.className = "lives"; lv.textContent = info.player.tolerance + " lives"; you.appendChild(lv); }
     const mk = (t, title, on) => { const b = document.createElement("button"); b.type = "button"; b.textContent = t; b.title = title; b.addEventListener("click", on); return b; };
     seatOrder.forEach((key, i) => {
       const r = rows.find((x) => keyOf(x) === key);

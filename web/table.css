@@ -168,6 +168,7 @@ button.big { padding: 8px 18px; font-weight: 600; }
 .seating { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
 .seating .chair { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--line); border-radius: 6px; padding: 2px 4px 2px 8px; }
 .seating .chair.you { border-color: var(--felt); font-weight: 600; padding-right: 8px; }
+.seating .chair.you .lives { font-size: 0.8rem; font-weight: 400; color: var(--muted); font-variant-numeric: tabular-nums; margin-left: 6px; }
 .seating .chair button { padding: 0 5px; font-size: 0.8rem; line-height: 1.4; border: none; }
 .seating .arrow { color: var(--muted); }
 #rivals .blurb { font-size: 0.85rem; line-height: 1.25; color: var(--muted); }
