@@ -49,6 +49,19 @@ h2 .pace { float: right; font-weight: normal; }
 #rivals .lives { font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 button { font: inherit; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--ink); cursor: pointer; }
 button.primary { background: var(--felt); color: #fff; border-color: var(--felt); }
+/* The one button a newcomer has to find. A slow ring so it reads as "press
+   me" on landing; still while disabled (no rival seated). */
+button.pulse { font-size: 1.1rem; padding: 10px 22px; }
+button.pulse:not(:disabled) { animation: pulse 1.8s ease-out infinite; }
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--felt) 65%, transparent); }
+  70% { box-shadow: 0 0 0 12px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+/* House rules and Advanced settings sit a breath below the main items. */
+.later { margin-top: 26px; }
+#houseLine:not([hidden]) + #houseRules { margin-top: 8px; }
+details.row > p, details.row > div { flex: 1 1 100%; }
 button.danger { border-color: var(--accent); color: var(--accent); }
 button:disabled { opacity: 0.5; cursor: default; }
 input[type=text], input[type=number], select { font: inherit; padding: 3px 6px; }
@@ -162,6 +175,7 @@ button.big { padding: 8px 18px; font-weight: 600; }
   .reveal.play .cupline, .reveal.play .die.hit, .reveal.play .verdict .tally,
   .seat.struck, .seat.struck .stat { animation: none; }
   .seat .paid { animation: none; opacity: 1; }
+  button.pulse { animation: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--felt) 45%, transparent); }
 }
 .log { max-height: 220px; overflow: auto; background: rgba(127,127,127,0.08); padding: 8px; font-size: 0.85rem; white-space: pre-wrap; }
 .record { font-size: 0.9rem; color: var(--muted); }

@@ -27,6 +27,11 @@
       if (sub) sub.insertAdjacentHTML("beforeend", " <span class='abtag'>glass A/B - drop ?glass=1 for paper</span>");
     });
   }
+  // ?iou=1 - the experimental IOU ledger. Off the page by default: newcomers
+  // read it as part of the rules and nobody asked for it.
+  if (/[?&]iou=1/.test(location.search)) {
+    document.addEventListener("DOMContentLoaded", () => { $("iouRow").hidden = false; $("iouReset").hidden = false; });
+  }
   let pace = 1;              // seconds per beat, the one tempo knob
   const beat = (ms) => (FAST ? 0 : Math.round(ms * pace));
   const REDUCED = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -264,7 +269,7 @@
     });
     const n = seatOrder.length;
     $("play").disabled = n === 0;
-    $("play").textContent = n === 0 ? "Seat a rival" : "Deal (table of " + (n + 1) + ")";
+    $("play").textContent = n === 0 ? "Seat a rival" : "Play (table of " + (n + 1) + ")";
     applyHouse(false);   // the cast brings the rules: change the chairs, the house re-picks
   }
   // What each house rule does, in the page's own words (the device carries the
@@ -274,11 +279,11 @@
     "surrender": "In a duel the challenger may fold instead of seeing the cups: it pays one (a drink or a die), the bid is deemed to have held, and nothing is revealed. A bidder never folds its own bid at this table.",
     "chain-kill": "A challenge can sweep a run of recent bidders at once, at a depth you pick. Each swept seat answers on its own last bid: stand, escalate, or fold the link for one. Every bid that was wrong pays; if nobody stands, nothing is revealed and the sweeper pays every penalty.",
     "direction": "The seat that opens the hand chooses which way the bidding runs.",
-    "must-pairs": "A cup with no pair is shaken again until it pairs. Bar only: with the ship's shrinking dice pool a reroll leaks nearly the whole hand.",
+    "must-pairs": "A cup with no pair is shaken again until it pairs. Chinese only: with Dudo's shrinking dice pool a reroll leaks nearly the whole hand.",
     "counter-kill": "A challenged bidder can double the stake instead of lifting; the challenger can double back or fold. The loser pays the stake that stood, in full; it runs as deep as nerve allows, with a hard stop at 32x.",
     "+2 reverse": "Raising the count by two or more reverses the direction of play.",
-    "palifico": "When a player drops to their last die, the next round is theirs: aces count only as aces, no wilds, and the face they open on is locked for the round, so the others may only raise the quantity (a seat that has had its own palifico round and is down to one die keeps the right to change the face). Once per player per match, never heads-up. Ship only: the bar's fixed five dice never reach one die.",
-    "calza": "After a rival's bid, anyone off-turn may call the count exact, with three or more still in and no palifico round running. Spot on heals a die (sobers a drink in the bar; nothing if the cup is full or the caller is sober); a miss costs one, and a miss at the brink is a knockout.",
+    "palifico": "When a player drops to their last die, the next round is theirs: aces count only as aces, no wilds, and the face they open on is locked for the round, so the others may only raise the quantity (a seat that has had its own palifico round and is down to one die keeps the right to change the face). Once per player per match, never heads-up. Dudo only: the Chinese table's fixed five dice never reach one die.",
+    "calza": "After a rival's bid, anyone off-turn may call the count exact, with three or more still in and no palifico round running. Spot on heals a die (sobers a drink at the Chinese table; nothing if the cup is full or the caller is sober); a miss costs one, and a miss at the brink is a knockout.",
     "out-of-turn challenge": "After a rival's bid you may challenge it at once, without waiting for your turn."
   };
   let helpOpen = null;   // the rule whose help is showing
@@ -378,7 +383,7 @@
       l.appendChild(c); l.appendChild(document.createTextNode(" " + r.name + " "));
       // The only biome that survives on the web is the table's dice economy, so
       // the only tag is the one that gates on it: the two rules that cannot port.
-      if (!r.portable) { const s = document.createElement("span"); s.className = "hint"; s.textContent = r.biome + " only"; l.appendChild(s); }
+      if (!r.portable) { const s = document.createElement("span"); s.className = "hint"; s.textContent = (r.biome === "bar" ? "Chinese" : "Dudo") + " only"; l.appendChild(s); }   // the page names rulesets, not venues
       if (!r.portable && r.biome !== home) c.disabled = true;
       const w = document.createElement("button"); w.type = "button"; w.className = "why"; w.textContent = "?"; w.dataset.rule = r.id; w.title = "explain this rule";
       w.addEventListener("click", (e) => { e.preventDefault(); showRuleHelp(r); });
@@ -993,7 +998,7 @@
              standing: null, bidder: -1, turn: -1, hand: 0, over: false, view: null, pick: null, stake: 1, phase: "idle",
              shown: null, drain: null, hit: null, holdAge: 0, houseIds: houseIds,
              rules: { chain: !!(rules.mask & (1 << 1)), calza: !!(rules.mask & (1 << 7)), oot: !!(rules.mask & (1 << 8)), ck: rules.ck === 1 },
-             log: ["# Liar's Dice " + (dudo ? "ship" : "bar") + " table, seed " + seed + ", build " + $("build").textContent,
+             log: ["# Liar's Dice " + (dudo ? "Dudo" : "Chinese") + " table, seed " + seed + ", build " + $("build").textContent,
                    "# cfg " + cfg, "# seats " + names.join(", ")] };
     $("setup").hidden = true; $("table").hidden = false; $("matchEnd").hidden = true; $("reveal").hidden = true; $("again").hidden = true;
     // One fixed action panel for the match: a rule that is off removes its
@@ -1003,7 +1008,7 @@
     $("calzaYes").hidden = !game.rules.calza;
     $("duel").hidden = !game.rules.ck;
     setPhase("idle");
-    $("tableTitle").textContent = (dudo ? "The ship" : "The bar") + (iou ? " - IOU" : "");
+    $("tableTitle").textContent = (dudo ? "Dudo table" : "Chinese table") + (iou ? " - IOU" : "");
     $("log").textContent = game.log.join("\n");
     renderSeats();
     try {

@@ -35,35 +35,44 @@
   <section id="setup" class="panel">
     <h2>Sit down</h2>
     <div class="row">
-      <label><input type="radio" name="format" value="bar" checked> Bar <span class="hint">(five dice, lives)</span></label>
-      <label><input type="radio" name="format" value="dudo"> Ship <span class="hint">(dice shrink)</span></label>
-      <label class="gap"><input type="checkbox" id="iou"> IOU mode <span class="hint">(ship only: Cove is the house. You and the crew hold markers against her: a plain hand moves one, a hand that knocks her out sheds fifteen for every seat still holding markers, and being knocked out by her adds two. Markers persist in this browser.)</span></label>
+      <label><input type="radio" name="format" value="bar" checked> Chinese <span class="hint">(吹牛: five dice, lives)</span></label>
+      <label><input type="radio" name="format" value="dudo"> Dudo <span class="hint">(Peruvian: dice shrink)</span></label>
     </div>
     <details class="row" id="pickRivals">
-      <summary>Choose your own rivals <span class="hint">the bar draws three of its six for you; the cast is nine. Tap a blurred line to reveal how that seat plays</span></summary>
+      <summary>Choose your rivals</summary>
+      <p class="hint">The Chinese table draws three of its six for you; the cast is nine. Tap a blurred line to reveal how that seat plays.</p>
       <div id="rivals" class="picks"></div>
+      <p class="hint">Seating is turn order from you; up to five rivals. Tap a chair, then another, to swap them.</p>
     </details>
     <div class="row">
       <span>Seating</span>
       <div id="seating" class="seating"></div>
-      <span class="hint">turn order from you; up to five rivals. Tap a chair, then another, to swap them</span>
     </div>
     <div class="row">
-      <label><input type="checkbox" id="skillRoster" checked> each rival's own skill</label>
-      <label class="gap">or all at <input type="range" id="skill" min="0" max="1" step="0.05" value="0.5" disabled> <span id="skillv">0.50</span></label>
+      <button id="play" class="primary pulse">Play</button>
     </div>
-    <p id="houseLine" class="houseline" hidden></p>
-    <details class="row" id="houseRules">
+    <div id="record" class="record"></div>
+    <p id="houseLine" class="houseline later" hidden></p>
+    <details class="row later" id="houseRules">
       <summary>House rules <span id="rulesSummary" class="hint"></span></summary>
       <div id="rules" class="picks"></div>
       <p id="ruleHelp" class="rulehelp" hidden></p>
       <p class="hint">Your first sit-down is the bare table: every rule opens off, which is the table every difficulty number was measured on. After that the house deals in a couple of the rules nobody here has tried yet, so they get played rather than skipped - untick anything, and it stops picking for the visit. Any rule plays at either table except the two the dice forbid (? explains each).</p>
     </details>
-    <div class="row">
-      <label>Seed <input type="text" id="seed" size="10" placeholder="random"></label>
-      <button id="play" class="primary">Deal</button>
-    </div>
-    <div id="record" class="record"></div>
+    <details class="row" id="advanced">
+      <summary>Advanced settings</summary>
+      <div class="row">
+        <label><input type="checkbox" id="skillRoster" checked> each rival's own skill</label>
+        <label class="gap">or all at <input type="range" id="skill" min="0" max="1" step="0.05" value="0.5" disabled> <span id="skillv">0.50</span></label>
+      </div>
+      <div class="row">
+        <label>Seed <input type="text" id="seed" size="10" placeholder="random"></label>
+      </div>
+      <!-- Experimental. Shown only under ?iou=1: newcomers found it confusing and nobody asked for it. -->
+      <div class="row" id="iouRow" hidden>
+        <label><input type="checkbox" id="iou"> Experimental: IOU mode <span class="hint">(Dudo only: Cove is the house. You and the crew hold markers against her: a plain hand moves one, a hand that knocks her out sheds fifteen for every seat still holding markers, and being knocked out by her adds two. Markers persist in this browser.)</span></label>
+      </div>
+    </details>
   </section>
 
   <section id="table" class="panel" hidden>
@@ -118,12 +127,12 @@
     <details class="brief">
       <summary>How the table works</summary>
       <ul>
-        <li><b>Bar - lives.</b> Each seat has a set number of lives, shown on the seat. Lose a hand and you drink the stake: one life, doubled for each rung of a duel. At zero you are out. Calling a count exact gives a life back.</li>
-        <li><b>Ship - dice.</b> Lose a hand, lose a die. Out of dice, out of the match.</li>
+        <li><b>Chinese - lives.</b> Each seat has a set number of lives, shown on the seat. Lose a hand and you drink the stake: one life, doubled for each rung of a duel. At zero you are out. Calling a count exact gives a life back.</li>
+        <li><b>Dudo - dice.</b> Lose a hand, lose a die. Out of dice, out of the match.</li>
         <li><b>Duels.</b> A challenge can be doubled back and forth before the cups come up, to a hard stop at 32x; the loser pays the stake that stood. When the duel is yours: stand, escalate, or - as the challenger - fold for the reduced penalty.</li>
         <li><b>Sweep.</b> Challenge a run of recent bidders at once, at a depth you pick. Each swept seat answers on its own bid, and you answer them.</li>
         <li><b>The beat after a rival's bid.</b> Exact! - and, under the out-of-turn rule, Challenge - light up for one beat. Say nothing and it passes, as at a real table.</li>
-        <li><b>Bar bids are 飞 or 斋.</b> 飞 ones are wild, 斋 ones count only as ones. A bid of ones is always 斋, any other face can be bid either way, and switching mid-round is priced. On the ship ones are wild, and a bid of aces counts aces alone and cannot open.</li>
+        <li><b>Chinese bids are 飞 or 斋.</b> 飞 ones are wild, 斋 ones count only as ones. A bid of ones is always 斋, any other face can be bid either way, and switching mid-round is priced. In Dudo ones are wild, and a bid of aces counts aces alone and cannot open.</li>
       </ul>
       <p class="hint">This is the host-sim table - the same match loop every difficulty number was measured on, with you at seat 0. Every decision that costs you is yours.</p>
     </details>
@@ -132,7 +141,7 @@
   <section id="reporting" class="panel">
     <h2>Reporting</h2>
     <p>Something felt wrong, too easy, too hard, or broke? Copy the match log above and paste it into an issue on the repository this page is served from. The log carries the seed and the build, so the hand can be replayed exactly.</p>
-    <p class="hint">Build <span id="build">?</span>. The table remembers you in this browser only: <a href="#" id="forget">forget me</a> · <a href="#" id="resetMarkers">reset IOU markers</a> <span id="resetMsg" class="hint"></span>.</p>
+    <p class="hint">Build <span id="build">?</span>. The table remembers you in this browser only: <a href="#" id="forget">forget me</a><span id="iouReset" hidden> · <a href="#" id="resetMarkers">reset IOU markers</a></span> <span id="resetMsg" class="hint"></span>.</p>
   </section>
 </main>
 <script src="dist/table.js"></script>
